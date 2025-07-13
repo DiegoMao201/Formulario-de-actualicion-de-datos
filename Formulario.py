@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# =========================================================================================
+# =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 9.0 (Mejora de Validez Legal con Notificación por Correo y Corrección de PDF)
+# Versión 9.1 (Ajuste a Secretos Agrupados y Conexión SMTP_SSL)
 # Fecha: 12 de Julio de 2025
-# =========================================================================================
+# =================================================================================================
 
 # --- 1. IMPORTACIÓN DE LIBRERÍAS ---
 import streamlit as st
@@ -24,7 +24,7 @@ from reportlab.lib.utils import ImageReader # <-- IMPORTANTE: Librería para man
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import smtplib
+import smtplib # Librería para enviar correos
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -41,6 +41,7 @@ la cual está disponible en sus instalaciones y en el sitio web www.ferreinox.co
 </ul>
 La empresa se compromete a almacenar mis datos en entornos seguros, protegiéndolos del acceso no autorizado y manteniendo la confidencialidad.
 """
+
 TEXTO_HABEAS_DATA = """
 En ejercicio de mi derecho a la autodeterminación informática, autorizo de manera voluntaria, expresa e irrevocable a
 FERREINOX S.A.S. BIC (o a quien represente sus derechos en el futuro) para:
@@ -51,6 +52,7 @@ FERREINOX S.A.S. BIC (o a quien represente sus derechos en el futuro) para:
 </ul>
 Asimismo, autorizo que la comunicación previa al reporte negativo, exigida por la ley, pueda ser enviada a través de un mensaje de datos al correo electrónico que suministraré en este formulario.
 """
+
 TEXTO_DERECHOS = """
 Usted tiene derecho a:
 <ul>
@@ -69,6 +71,7 @@ Puede ejercer sus derechos a través de los siguientes canales:
     <li><b>Página web:</b> www.ferreinox.co</li>
 </ul>
 """
+
 TEXTO_VERACIDAD = """
 Certifico que toda la información que proporciono en este formulario es veraz, completa, exacta y actualizada.
 Entiendo que cualquier error en la información suministrada será de mi exclusiva responsabilidad.
@@ -80,7 +83,7 @@ En consecuencia, procedo a diligenciar mi información.
 # --- 3. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
 
-# --- 4. ESTILO CSS ---
+# --- 4. ESTILO CSS PERSONALIZADO ---
 st.markdown("""
 <style>
     .main { background-color: #F0F2F6; }
@@ -109,7 +112,7 @@ class PDFGenerator:
     def _draw_header(self, page_title):
         self.c.saveState()
         try:
-            # Asegúrate de que el logo esté en la misma carpeta o proporciona la ruta completa
+            # Asegúrate de que el logo esté en la misma carpeta del proyecto
             self.c.drawImage('LOGO FERREINOX SAS BIC 2024.png', 50, self.height - 70, width=150, height=50, mask='auto')
         except:
             self.c.drawString(50, self.height - 60, "Ferreinox S.A.S. BIC")
@@ -157,8 +160,7 @@ class PDFGenerator:
         self.c.setFont("Helvetica-Bold", 10)
         self.c.drawString(50, y_pos, "Firma del Representante Legal:")
         
-        # --- CORRECCIÓN CLAVE PARA EL MANEJO DE LA IMAGEN DE LA FIRMA ---
-        # Se convierte la imagen a un stream de bytes y se usa ImageReader de ReportLab.
+        # --- CÓDIGO CORREGIDO PARA MANEJAR LA IMAGEN DE LA FIRMA ---
         firma_buffer = io.BytesIO()
         self.data['firma_img_pil'].save(firma_buffer, format='PNG')
         firma_buffer.seek(0)
@@ -169,12 +171,13 @@ class PDFGenerator:
         self.c.setFont("Helvetica", 9)
         self.c.drawString(50, y_pos - 90, self.data['rep_legal'])
 
+        # --- TABLA DE TRAZABILIDAD MEJORADA ---
         data_trazabilidad = [
             ['Concepto de Trazabilidad', 'Registro'],
             ['ID Único del Documento:', self.data.get('doc_id', '')],
             ['Fecha y Hora de Firma:', self.data.get('timestamp', '')],
             ['Correo Electrónico Asociado:', self.data.get('correo', '')],
-            ['Consentimiento Registrado Vía:', 'Portal Web Institucional v9.0'],
+            ['Consentimiento Registrado Vía:', 'Portal Web Institucional v9.1'],
             ['IP de Origen:', 'No registrada (Estándar Streamlit Cloud)']
         ]
         tabla = Table(data_trazabilidad, colWidths=[2*inch, 2.5*inch], rowHeights=0.3*inch)
@@ -190,26 +193,30 @@ class PDFGenerator:
         self.c.save()
 
 # --- 6. CONFIGURACIÓN DE CONEXIONES Y SECRETOS ---
-# --- 6.A. INSTRUCCIONES PARA NUEVOS SECRETOS DE CORREO ---
-# Para activar la notificación por correo, debes añadir los siguientes secretos a tu cuenta de Streamlit:
-# 1. sender_email: El correo desde el cual se enviarán las notificaciones (ej: "notificaciones.ferreinox@gmail.com").
-# 2. sender_password: La contraseña de aplicación de ese correo. IMPORTANTE: No uses tu contraseña principal.
-#                    Busca "Crear contraseñas de aplicación" para tu proveedor de correo (Gmail, Outlook, etc.).
-# 3. smtp_server: El servidor de correo (ej: "smtp.gmail.com").
-# 4. smtp_port: El puerto del servidor (ej: 587 para TLS).
 try:
-    required_secrets = [
+    # Paso 1: Verificar que los secretos de Google API están presentes
+    required_google_secrets = [
         "type", "project_id", "private_key_id", "private_key", "client_email",
         "client_id", "auth_uri", "token_uri", "auth_provider_x509_cert_url",
-        "client_x509_cert_url", "google_sheet_id", "drive_folder_id",
-        # Nuevos secretos para el envío de correo
-        "sender_email", "sender_password", "smtp_server", "smtp_port"
+        "client_x509_cert_url", "google_sheet_id", "drive_folder_id"
     ]
-    missing_secrets = [secret for secret in required_secrets if secret not in st.secrets]
-    if missing_secrets:
-        st.error(f"🚨 Error Crítico: Faltan secretos en la configuración: {', '.join(missing_secrets)}")
+    missing_google_secrets = [secret for secret in required_google_secrets if secret not in st.secrets]
+    if missing_google_secrets:
+        st.error(f"🚨 Error Crítico: Faltan secretos de Google API: {', '.join(missing_google_secrets)}")
+        st.stop()
+    
+    # Paso 2: Verificar que los secretos de Correo están presentes y agrupados
+    if "email_credentials" not in st.secrets:
+        st.error("🚨 Error Crítico: La sección [email_credentials] no se encuentra en tus secretos.")
+        st.stop()
+        
+    required_email_secrets = ["smtp_server", "smtp_port", "smtp_user", "smtp_password"]
+    missing_email_secrets = [secret for secret in required_email_secrets if secret not in st.secrets.email_credentials]
+    if missing_email_secrets:
+        st.error(f"🚨 Error Crítico: Faltan secretos en la sección [email_credentials]: {', '.join(missing_email_secrets)}")
         st.stop()
 
+    # Paso 3: Ensamblar credenciales de Google API
     private_key = st.secrets["private_key"].replace('\\n', '\n')
     creds_info = {
         "type": st.secrets["type"], "project_id": st.secrets["project_id"],
@@ -223,8 +230,8 @@ try:
     DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
     scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
     
+    # Paso 4: Crear y autorizar conexiones
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-    
     gc = gspread.authorize(creds)
     worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
     drive_service = build('drive', 'v3', credentials=creds)
@@ -235,7 +242,7 @@ except Exception as e:
     st.warning("Verifica que las credenciales y los secretos de Google y del correo electrónico sean correctos.")
     st.stop()
 
-# --- 7. INTERFAZ DE USUARIO ---
+# --- 7. INTERFAZ DE USUARIO CON STREAMLIT ---
 if 'terms_viewed' not in st.session_state:
     st.session_state.terms_viewed = False
 
@@ -264,6 +271,7 @@ with st.expander("Haga clic aquí para leer los Términos, Condiciones y Autoriz
 st.button("He leído los términos y deseo continuar", on_click=enable_authorization, use_container_width=True)
 st.markdown("---")
 
+# --- FORMULARIO PRINCIPAL ---
 with st.form(key="formulario_principal"):
     st.header("👤 Datos del Representante Legal")
     col1, col2 = st.columns(2)
@@ -289,17 +297,28 @@ with st.form(key="formulario_principal"):
     st.header("✍️ Firma Digital")
     st.caption("Por favor, firme en el recuadro para sellar su consentimiento.")
     canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
-        background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma"
+        fill_color="rgba(255, 255, 255, 0)",
+        stroke_width=3,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        height=200,
+        drawing_mode="freedraw",
+        key="canvas_firma"
     )
     
     submit_button = st.form_submit_button(label="✅ Aceptar y Enviar Documento Firmado", use_container_width=True)
 
-# --- 8. LÓGICA DE PROCESAMIENTO ---
-# --- 8.A. FUNCIÓN PARA ENVIAR CORREO DE CONFIRMACIÓN ---
+# --- 8. LÓGICA DE PROCESAMIENTO AL ENVIAR ---
+# --- 8.A. FUNCIÓN AJUSTADA PARA ENVIAR CORREO DE CONFIRMACIÓN CON SMTP_SSL ---
 def send_email_with_attachment(recipient_email, subject, body, pdf_buffer, filename):
+    # Lee las credenciales desde la sección [email_credentials] de los secretos
+    sender_email = st.secrets.email_credentials.smtp_user
+    sender_password = st.secrets.email_credentials.smtp_password
+    smtp_server = st.secrets.email_credentials.smtp_server
+    smtp_port = st.secrets.email_credentials.smtp_port
+
     msg = MIMEMultipart()
-    msg['From'] = st.secrets["sender_email"]
+    msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Subject'] = subject
     
@@ -310,11 +329,11 @@ def send_email_with_attachment(recipient_email, subject, body, pdf_buffer, filen
     part['Content-Disposition'] = f'attachment; filename="{filename}"'
     msg.attach(part)
     
-    server = smtplib.SMTP(st.secrets["smtp_server"], st.secrets["smtp_port"])
-    server.starttls()
-    server.login(st.secrets["sender_email"], st.secrets["sender_password"])
-    server.send_message(msg)
-    server.quit()
+    # Usa smtplib.SMTP_SSL para el puerto 465, que es más seguro.
+    context = smtplib.ssl.create_default_context()
+    with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
 
 if submit_button:
     # Validaciones de campos
@@ -383,7 +402,7 @@ if submit_button:
             except Exception as e:
                 st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Por favor, intente de nuevo.")
                 st.error(f"Detalle técnico: {e}")
-                # Intenta registrar el error en la hoja de cálculo
+                # Intenta registrar el error en la hoja de cálculo para tener trazabilidad del fallo
                 try:
                     worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
                 except Exception as log_e:
