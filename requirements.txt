@@ -1,7 +1,7 @@
 streamlit
 streamlit-drawable-canvas
+reportlab
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
-reportlab
-PyPDF2
+Pillow
