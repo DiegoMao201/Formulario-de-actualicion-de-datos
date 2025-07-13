@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 13.0 (Rediseño con selección de tipo de persona, formularios dinámicos y PDF condicional)
+# Versión 14.0 (Optimización de PDF a dos páginas)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -14,7 +14,7 @@ import tempfile
 import os
 import numpy as np
 
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, FrameBreak
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
@@ -103,7 +103,7 @@ class PDFGeneratorPlatypus:
         self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
         self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=16, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
         self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
-        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=12, spaceAfter=8)
+        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=18, spaceAfter=8)
         self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=TA_LEFT)
         self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=14)
 
@@ -169,18 +169,17 @@ class PDFGeneratorPlatypus:
 
             firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
             
-            # Define signature text based on client type
             if self.data.get('client_type') == 'juridica':
                  nombre_firmante = self.data.get('rep_legal', '')
                  id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
-            else: # Persona Natural
+            else:
                  nombre_firmante = self.data.get('nombre_natural', '')
                  id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
 
             firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
                 <b>Identificación:</b> {id_firmante}<br/>
                 <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v13.0"""
+                <b>Consentimiento Vía:</b> Portal Web v14.0"""
             
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([
@@ -208,7 +207,6 @@ class PDFGeneratorPlatypus:
         self.story.append(Spacer(1, 0.2*inch))
         self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
         
-        # --- CONDITIONAL PDF CONTENT ---
         if self.data.get('client_type') == 'juridica':
             datos = [
                 [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body),
@@ -255,21 +253,19 @@ class PDFGeneratorPlatypus:
             ]))
             self.story.append(table_basicos)
             rep_legal_name = self.data['nombre_natural']
-            entity_name = self.data['nombre_natural'] # For natural person, they represent themselves
+            entity_name = self.data['nombre_natural'] 
             entity_id = self.data['cedula_natural']
             entity_email = self.data['correo']
 
-        self.story.append(FrameBreak())
-        self.story.append(Spacer(1, 0.2*inch))
+        # ** CORRECCIÓN CLAVE: Se elimina el salto de página forzado **
+        # self.story.append(FrameBreak()) -> ESTA LÍNEA FUE ELIMINADA
 
         self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
         self.story.append(Paragraph(get_texto_habeas_data(rep_legal_name, entity_name, entity_id, entity_email), self.style_body))
-        self.story.append(Spacer(1, 0.2*inch))
-
+        
         self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
         self.story.append(Paragraph(get_texto_tratamiento_datos(rep_legal_name, entity_name, entity_id), self.style_body))
-        self.story.append(Spacer(1, 0.3*inch))
-
+        
         firma_path = self._add_signature_section()
         
         try:
@@ -333,7 +329,6 @@ except Exception:
 st.title("Portal de Vinculación y Autorización de Datos")
 st.markdown("---")
 
-# Initialize session state variables
 if 'terms_accepted' not in st.session_state:
     st.session_state.terms_accepted = False
 if 'client_type' not in st.session_state:
@@ -363,7 +358,6 @@ elif st.session_state.client_type is None:
     with col2:
         st.button("Soy Persona Natural", on_click=set_client_type, args=('natural',), use_container_width=True)
 
-# --- FORMULARIO PARA PERSONA JURÍDICA ---
 elif st.session_state.client_type == 'juridica':
     with st.form(key="form_juridica"):
         st.header("📝 Formulario de Vinculación: Persona Jurídica")
@@ -465,7 +459,6 @@ elif st.session_state.client_type == 'juridica':
                     if pdf_file_path and os.path.exists(pdf_file_path):
                         os.unlink(pdf_file_path)
 
-# --- FORMULARIO PARA PERSONA NATURAL ---
 elif st.session_state.client_type == 'natural':
     with st.form(key="form_natural"):
         st.header("📝 Formulario de Vinculación: Persona Natural")
