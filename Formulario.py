@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 8.0 (Final Restaurada)
+# Versión 8.1 (Diagnóstico Mejorado)
 # Fecha: 12 de Julio de 2025
 # =========================================================================================
 
@@ -12,7 +12,7 @@ import io
 from PIL import Image
 from datetime import datetime
 import gspread
-from reportlab.pdfgen import canvas
+from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import Paragraph, Table, TableStyle
@@ -25,7 +25,7 @@ from googleapiclient.http import MediaFileUpload
 
 # --- 2. TEXTOS LEGALES (CONSTANTES) ---
 TEXTO_TRATAMIENTO_DATOS = """
-De conformidad con la Política de Tratamiento de Datos Personales de FERREINOX S.A.S. BIC (NIT. 800224617-8), 
+De conformidad con la Política de Tratamiento de Datos Personales de FERREINOX S.A.S. BIC (NIT. 800224617-8),
 la cual está disponible en sus instalaciones y en el sitio web www.ferreinox.co, autorizo a la empresa para:
 <ul>
     <li>Utilizar mis datos personales para fines relacionados con nuestra relación comercial.</li>
@@ -37,7 +37,7 @@ La empresa se compromete a almacenar mis datos en entornos seguros, protegiéndo
 """
 
 TEXTO_HABEAS_DATA = """
-En ejercicio de mi derecho a la autodeterminación informática, autorizo de manera voluntaria, expresa e irrevocable a 
+En ejercicio de mi derecho a la autodeterminación informática, autorizo de manera voluntaria, expresa e irrevocable a
 FERREINOX S.A.S. BIC (o a quien represente sus derechos en el futuro) para:
 <ul>
     <li><b>Consultar y Administrar mi Información:</b> Capturar, tratar, procesar, verificar y usar mi información comercial, crediticia, financiera y de servicios.</li>
@@ -67,10 +67,10 @@ Puede ejercer sus derechos a través de los siguientes canales:
 """
 
 TEXTO_VERACIDAD = """
-Certifico que toda la información que proporciono en este formulario es veraz, completa, exacta y actualizada. 
+Certifico que toda la información que proporciono en este formulario es veraz, completa, exacta y actualizada.
 Entiendo que cualquier error en la información suministrada será de mi exclusiva responsabilidad.
 <br><br>
-Declaro que he leído, comprendido y aceptado en su totalidad el contenido de estas autorizaciones y las finalidades descritas. 
+Declaro que he leído, comprendido y aceptado en su totalidad el contenido de estas autorizaciones y las finalidades descritas.
 En consecuencia, procedo a diligenciar mi información.
 """
 
@@ -96,7 +96,7 @@ class PDFGenerator:
     def __init__(self, buffer, data):
         self.buffer = buffer
         self.data = data
-        self.c = canvas.Canvas(self.buffer, pagesize=letter)
+        self.c = pdf_canvas.Canvas(self.buffer, pagesize=letter)
         self.width, self.height = letter
         self.color_primary = colors.HexColor('#0D47A1')
         self.color_secondary = colors.HexColor('#1565C0')
@@ -106,6 +106,7 @@ class PDFGenerator:
     def _draw_header(self, page_title):
         self.c.saveState()
         try:
+            # Asegúrate de que el logo esté en la misma carpeta o proporciona la ruta completa
             self.c.drawImage('LOGO FERREINOX SAS BIC 2024.png', 50, self.height - 70, width=150, height=50, mask='auto')
         except:
             self.c.drawString(50, self.height - 60, "Ferreinox S.A.S. BIC")
@@ -121,7 +122,7 @@ class PDFGenerator:
         p_height = p.height
         p.drawOn(self.c, x, y - p_height)
         return p_height
-    
+
     def generate(self):
         self._draw_header("CONSENTIMIENTO Y AUTORIZACIÓN DE DATOS")
         y_pos = self.height - 150
@@ -139,20 +140,20 @@ class PDFGenerator:
         y_pos -= 20
         h = self._draw_paragraph(50, y_pos, 500, self.data['texto_habeas'])
         y_pos -= (h + 40)
-        
+
         self.c.setFont("Helvetica-Bold", 11)
         self.c.setFillColor(self.color_secondary)
         self.c.drawString(50, y_pos, "CONSTANCIA DE ACEPTACIÓN Y FIRMA")
         self.c.line(50, y_pos - 5, self.width - 50, y_pos - 5)
         y_pos -= 30
-        
+
         self.c.setFont("Helvetica-Bold", 10)
         self.c.drawString(50, y_pos, "Firma del Representante Legal:")
         self.c.drawImage(self.data['firma_img_pil'], 50, y_pos - 70, width=180, height=60, mask='auto')
         self.c.line(50, y_pos - 80, 230, y_pos - 80)
         self.c.setFont("Helvetica", 9)
         self.c.drawString(50, y_pos - 90, self.data['rep_legal'])
-        
+
         data_trazabilidad = [
             ['Concepto', 'Registro'],
             ['ID Único del Documento:', self.data.get('doc_id', '')],
@@ -172,21 +173,43 @@ class PDFGenerator:
 
         self.c.save()
 
-# --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES ---
+# --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES (CON DIAGNÓSTICO MEJORADO) ---
 try:
+    # Paso 1: Verificar que los secretos existen
+    if "gcp_service_account" not in st.secrets or "google_sheet_id" not in st.secrets or "drive_folder_id" not in st.secrets:
+        st.error("🚨 Error Crítico: Faltan uno o más secretos en la configuración de Streamlit (gcp_service_account, google_sheet_id, drive_folder_id).")
+        st.stop()
+
     creds_info = st.secrets["gcp_service_account"]
+    GOOGLE_SHEET_ID = st.secrets["google_sheet_id"]
+    DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
     scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+    
+    # Paso 2: Crear credenciales
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
     
-    drive_service = build('drive', 'v3', credentials=creds)
-    DRIVE_FOLDER_ID = st.secrets.get("drive_folder_id")
+    # Paso 3: Conectar a Google Sheets
+    with st.spinner("Conectando con el registro de trazabilidad (Google Sheets)..."):
+        gc = gspread.authorize(creds)
+        worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
+    
+    # Paso 4: Conectar a Google Drive
+    with st.spinner("Conectando con el archivo digital (Google Drive)..."):
+        drive_service = build('drive', 'v3', credentials=creds)
 
-    gc = gspread.authorize(creds)
-    GOOGLE_SHEET_ID = st.secrets.get("google_sheet_id")
-    worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
-
+except gspread.exceptions.SpreadsheetNotFound:
+    st.error(f"🚨 Error de Configuración: No se pudo encontrar la hoja de Google Sheets.")
+    st.error(f"El ID de la hoja que se intentó abrir fue: '{st.secrets.get('google_sheet_id')}'")
+    st.warning("Por favor, verifica los siguientes puntos:")
+    st.markdown("""
+    1.  **El `google_sheet_id` en tus secretos de Streamlit es correcto.** Cópialo directamente desde la URL de tu Google Sheet.
+    2.  **Has compartido la hoja de cálculo con el correo de la cuenta de servicio.** El correo se encuentra dentro de tu archivo de secretos (`client_email`) y debe tener permisos de **Editor** en la hoja.
+    """)
+    st.stop()
 except Exception as e:
-    st.error(f"🚨 Error de Configuración en las APIs de Google. Verifica los permisos y secretos. Detalle: {e}")
+    st.error(f"🚨 Ha ocurrido un error inesperado durante la configuración con las APIs de Google.")
+    st.error(f"Detalle técnico del error: {e}")
+    st.warning("Verifica que las APIs de Google Drive y Google Sheets estén activadas en tu proyecto de Google Cloud.")
     st.stop()
 
 # --- 7. INTERFAZ DE USUARIO CON STREAMLIT ---
@@ -196,7 +219,12 @@ if 'terms_viewed' not in st.session_state:
 def enable_authorization():
     st.session_state.terms_viewed = True
 
-st.image('LOGO FERREINOX SAS BIC 2024.png', width=250)
+# Asegúrate de que el logo esté en la misma carpeta o proporciona la ruta completa
+try:
+    st.image('LOGO FERREINOX SAS BIC 2024.png', width=250)
+except Exception:
+    st.image("https://placehold.co/250x80/0D47A1/FFFFFF?text=Ferreinox+S.A.S.+BIC", width=250)
+
 st.title("Portal de Vinculación y Autorización de Datos")
 st.markdown("---")
 
@@ -238,13 +266,26 @@ with st.form(key="formulario_principal"):
     
     st.header("✍️ Firma Digital")
     st.caption("Por favor, firme en el recuadro para sellar su consentimiento.")
-    canvas_result = st.canvas(height=200, drawing_mode="freedraw", key="canvas_firma")
+    # CORRECCIÓN: Se usa st_canvas en lugar de st.canvas
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 255, 255, 0)",  # Fondo transparente
+        stroke_width=3,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        height=200,
+        drawing_mode="freedraw",
+        key="canvas_firma"
+    )
     
     submit_button = st.form_submit_button(label="✅ Aceptar y Enviar Documento Firmado", use_container_width=True)
 
 # --- 8. LÓGICA DE PROCESAMIENTO AL ENVIAR ---
 if submit_button:
-    if not st.session_state.auth_checkbox:
+    # Validaciones de campos
+    campos_validos = all([rep_legal, cedula_rep_legal, razon_social, nit, correo])
+    if not campos_validos:
+        st.warning("⚠️ Por favor, complete todos los campos marcados con *.")
+    elif not st.session_state.auth_checkbox:
         st.warning("⚠️ Para continuar, debe aceptar las autorizaciones marcando la casilla correspondiente.")
     elif canvas_result.image_data is None:
         st.warning("🖋️ La firma es indispensable para validar el documento.")
@@ -265,6 +306,7 @@ if submit_button:
                     'doc_id': doc_id, 'timestamp': timestamp,
                     'texto_tratamiento': TEXTO_TRATAMIENTO_DATOS, 'texto_habeas': TEXTO_HABEAS_DATA,
                 }
+                # Convertir la imagen del canvas a un objeto de imagen PIL
                 form_data['firma_img_pil'] = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
 
                 pdf_buffer = io.BytesIO()
@@ -277,7 +319,7 @@ if submit_button:
                 file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
                 media = MediaFileUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
                 
-                # Ajuste para Unidades Compartidas
+                # Sube el archivo a Drive, asegurando compatibilidad con Unidades Compartidas
                 file = drive_service.files().create(
                     body=file_metadata,
                     media_body=media,
@@ -291,5 +333,9 @@ if submit_button:
                 st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({file.get('webViewLink')})")
 
             except Exception as e:
-                st.error(f"❌ ¡Ha ocurrido un error inesperado! Detalle técnico: {e}")
-                worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
+                st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Detalle técnico: {e}")
+                # Intenta registrar el error en la hoja de cálculo para tener trazabilidad
+                try:
+                    worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
+                except Exception as log_e:
+                    st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
