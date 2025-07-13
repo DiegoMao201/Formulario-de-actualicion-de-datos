@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 10.5 (Solución Final de Imagen RGB, Layout de 2 Columnas y Optimización de Márgenes)
-# Fecha: 13 de Julio de 2025
+# Versión 10.5 (Solución Definitiva de TypeError y Rediseño Profesional de PDF)
+# Fecha: 12 de Julio de 2025
 # =================================================================================================
 
 # --- 1. IMPORTACIÓN DE LIBRERÍAS ---
@@ -12,9 +12,11 @@ import io
 from PIL import Image
 from datetime import datetime
 import gspread
+import tempfile # Para manejo de archivos temporales
+import os       # Para operaciones del sistema (eliminar archivo)
 
 # --- Librerías de ReportLab para PDF Profesional (Platypus) ---
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, KeepInFrame
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, FrameBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
@@ -37,7 +39,7 @@ st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="�
 st.markdown("""
 <style>
     .main { background-color: #F0F2F6; }
-    .block-container { padding-top: 1rem; padding-bottom: 2rem; }
+    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
     h1, h2, h3, h4 { color: #0D47A1; }
     .stButton>button {
         border-radius: 8px; border: 2px solid #0D47A1; background-color: #1565C0;
@@ -91,169 +93,186 @@ def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
         Autorización, y acepto la finalidad en ella descrita y las consecuencias que se derivan de ella.
     """
 
-# --- 5. CLASE GENERADORA DE PDF (REDISEÑADA Y CORREGIDA) ---
+# --- 5. CLASE GENERADORA DE PDF (TOTALMENTE REDISEÑADA) ---
 class PDFGeneratorPlatypus:
-    def __init__(self, buffer, data):
-        self.buffer = buffer
+    def __init__(self, data):
         self.data = data
         self.story = []
         
-        self.styles = getSampleStyleSheet()
-        self.styles.add(ParagraphStyle(name='MainTitle', parent=self.styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor('#0D47A1'), leading=20))
-        self.styles.add(ParagraphStyle(name='SubTitle', parent=self.styles['h2'], fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=colors.HexColor('#0D47A1'), spaceBefore=10, spaceAfter=6))
-        self.styles.add(ParagraphStyle(name='Body', parent=self.styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=12))
-        self.styles.add(ParagraphStyle(name='Footer', parent=self.styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_CENTER, textColor=colors.grey))
-        self.styles.add(ParagraphStyle(name='BodySmall', parent=self.styles['Body'], fontSize=8.5, leading=11))
+        # --- ESTILOS MEJORADOS ---
+        styles = getSampleStyleSheet()
+        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
+        self.style_subtitle = ParagraphStyle(name='SubTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=colors.HexColor('#0D47A1'), spaceAfter=10)
+        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_RIGHT, textColor=colors.HexColor('#0D47A1'))
+        self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_CENTER, textColor=colors.grey)
 
-    def _header(self, canvas, doc):
+    def _on_page(self, canvas, doc):
+        """ Dibuja los elementos fijos (encabezado y pie) en cada página. """
         canvas.saveState()
+        
+        # --- ENCABEZADO PROFESIONAL CON TABLA ---
         try:
-            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.8*inch, height=0.9*inch, kind='proportional')
-            title = Paragraph("ACTUALIZACIÓN Y AUTORIZACIÓN DE DATOS DE CLIENTE", self.styles['MainTitle'])
-            header_table = Table([[logo, title]], colWidths=[3.0*inch, 4.0*inch])
-            header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (1,0), (1,0), 10)]))
-            w, h = header_table.wrap(doc.width, doc.topMargin)
-            header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h)
-            canvas.setStrokeColorRGB(0.8, 0.8, 0.8)
-            canvas.line(doc.leftMargin, doc.height + doc.topMargin - h - 3, doc.width + doc.leftMargin, doc.height + doc.topMargin - h - 3)
-        except Exception as e:
-            canvas.setFont('Helvetica-Bold', 12)
-            canvas.drawString(doc.leftMargin, doc.height + doc.topMargin - 0.7*inch, "Ferreinox S.A.S. BIC")
-            st.warning(f"No se pudo cargar el logo en el PDF: {e}")
-        canvas.restoreState()
+            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=3*inch, height=1*inch, hAlign='LEFT')
+        except:
+            logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body)
 
-    def _footer(self, canvas, doc):
-        canvas.saveState()
-        footer_table = Table([[Paragraph("EVOLUCIONANDO JUNTOS", self.styles['Footer']), Paragraph(f"Página {doc.page}", self.styles['Footer'])]], colWidths=[doc.width/2, doc.width/2])
-        footer_table.setStyle(TableStyle([('ALIGN', (0,0), (0,0), 'LEFT'), ('ALIGN', (1,0), (1,0), 'RIGHT')]))
+        header_content = [[logo, Paragraph("ACTUALIZACIÓN Y AUTORIZACIÓN DE DATOS DE CLIENTE", self.style_header_title)]]
+        header_table = Table(header_content, colWidths=[3.5*inch, 3*inch])
+        header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+        
+        # Dibuja la tabla del encabezado en la parte superior de la página
+        w, h = header_table.wrap(doc.width, doc.topMargin)
+        header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h)
+
+        # --- PIE DE PÁGINA PROFESIONAL CON TABLA ---
+        footer_content = [[Paragraph("EVOLUCIONANDO JUNTOS", self.style_footer), Paragraph(f"Página {doc.page}", self.style_footer)]]
+        footer_table = Table(footer_content, colWidths=[doc.width/2, doc.width/2])
+        footer_table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (0,0), 'LEFT'),
+            ('ALIGN', (1,0), (1,0), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
+        ]))
+        
+        # Dibuja la tabla del pie de página
         w, h = footer_table.wrap(doc.width, doc.bottomMargin)
         footer_table.drawOn(canvas, doc.leftMargin, h)
         canvas.restoreState()
 
-    def _process_signature_image(self, signature_array):
-        try:
-            signature_rgba = Image.fromarray(signature_array.astype('uint8'), 'RGBA')
-            background = Image.new('RGB', signature_rgba.size, (255, 255, 255))
-            background.paste(signature_rgba, mask=signature_rgba.split()[3])
-            buffer = io.BytesIO()
-            background.save(buffer, format='JPEG', quality=95)
-            buffer.seek(0)
-            return buffer
-        except Exception as e:
-            st.error(f"Error crítico al procesar la imagen de la firma: {e}")
-            return None
-
     def generate(self):
-        doc = BaseDocTemplate(self.buffer, pagesize=letter, leftMargin=0.75*inch, rightMargin=0.75*inch, topMargin=1.2*inch, bottomMargin=1*inch)
-        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
-        template = PageTemplate(id='main_template', frames=[frame], onPage=self._header, onPageEnd=self._footer)
+        # SOLUCIÓN TypeError: Se crea un archivo temporal para escribir el PDF.
+        # Esto proporciona una ruta de archivo física que MediaFileUpload necesita.
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            pdf_path = temp_pdf.name
+
+        doc = BaseDocTemplate(pdf_path, pagesize=letter, leftMargin=1*inch, rightMargin=1*inch, topMargin=1.5*inch, bottomMargin=1*inch)
+        
+        # Se define un único frame para el contenido principal, dejando espacio para el encabezado/pie.
+        main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
+        template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
         doc.addPageTemplates([template])
+
+        # --- CONSTRUCCIÓN DEL "STORY" (CONTENIDO PRINCIPAL) ---
+        self.story.append(Spacer(1, 0.4*inch))
         
-        self.story.append(Spacer(1, 0.1*inch))
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.styles['SubTitle']))
-        
-        # --- TABLA DE DATOS BÁSICOS EN DOS COLUMNAS PARA AHORRAR ESPACIO ---
-        col1_data = [
-            [Paragraph('<b>Razón Social:</b>', self.styles['BodySmall']), Paragraph(self.data.get('razon_social', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>NIT:</b>', self.styles['BodySmall']), Paragraph(self.data.get('nit', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>Dirección:</b>', self.styles['BodySmall']), Paragraph(self.data.get('direccion', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>Teléfono:</b>', self.styles['BodySmall']), Paragraph(self.data.get('telefono', ''), self.styles['BodySmall'])],
+        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_subtitle))
+        datos_basicos = [
+            [Paragraph('<b>Razón Social:</b>', self.style_body), Paragraph(self.data.get('razon_social', ''), self.style_body)],
+            [Paragraph('<b>Nombre Comercial:</b>', self.style_body), Paragraph(self.data.get('nombre_comercial', ''), self.style_body)],
+            [Paragraph('<b>NIT:</b>', self.style_body), Paragraph(self.data.get('nit', ''), self.style_body)],
+            [Paragraph('<b>Representante Legal:</b>', self.style_body), Paragraph(self.data.get('rep_legal', ''), self.style_body)],
+            [Paragraph('<b>Dirección:</b>', self.style_body), Paragraph(self.data.get('direccion', ''), self.style_body)],
+            [Paragraph('<b>Ciudad:</b>', self.style_body), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+            [Paragraph('<b>Teléfono:</b>', self.style_body), Paragraph(self.data.get('telefono', ''), self.style_body)],
+            [Paragraph('<b>Celular:</b>', self.style_body), Paragraph(self.data.get('celular', ''), self.style_body)],
+            [Paragraph('<b>Correo para Notificaciones:</b>', self.style_body), Paragraph(self.data.get('correo', ''), self.style_body)],
         ]
-        col2_data = [
-            [Paragraph('<b>Nombre Comercial:</b>', self.styles['BodySmall']), Paragraph(self.data.get('nombre_comercial', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>Ciudad:</b>', self.styles['BodySmall']), Paragraph(self.data.get('ciudad', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>Correo Notificaciones:</b>', self.styles['BodySmall']), Paragraph(self.data.get('correo', ''), self.styles['BodySmall'])],
-            [Paragraph('<b>Celular:</b>', self.styles['BodySmall']), Paragraph(self.data.get('celular', ''), self.styles['BodySmall'])],
+        table_basicos = Table(datos_basicos, colWidths=[2.2*inch, 4.3*inch])
+        table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 8), ('RIGHTPADDING', (0,0), (-1,-1), 8), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
+        self.story.append(table_basicos)
+        self.story.append(Spacer(1, 0.3*inch))
+
+        datos_contactos = [
+             [Paragraph('<b>CONTACTO DE COMPRAS</b>', self.style_body), Paragraph('<b>CONTACTO DE PAGOS</b>', self.style_body)],
+             [Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.style_body),
+              Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.style_body)]
         ]
-
-        table_col1 = Table(col1_data, colWidths=[1.2*inch, 2.2*inch])
-        table_col1.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-
-        table_col2 = Table(col2_data, colWidths=[1.3*inch, 2.3*inch])
-        table_col2.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-
-        master_table = Table([[table_col1, table_col2]], colWidths=[3.5*inch, 3.5*inch])
-        master_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
-        
-        self.story.append(master_table)
-        self.story.append(Spacer(1, 0.2*inch))
-
-        # --- TABLA DE CONTACTOS ---
-        datos_contactos = [[Paragraph('<b>CONTACTO DE COMPRAS</b>', self.styles['BodySmall']), Paragraph('<b>CONTACTO DE PAGOS</b>', self.styles['BodySmall'])], [Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.styles['BodySmall']), Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.styles['BodySmall'])]]
-        table_contactos = Table(datos_contactos, colWidths=[3.5*inch, 3.5*inch])
-        table_contactos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E0E0E0')), ('ALIGN', (0,0), (-1,0), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
+        table_contactos = Table(datos_contactos, colWidths=[3.25*inch, 3.25*inch])
+        table_contactos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E0E0E0')), ('ALIGN', (0,0), (-1,0), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 8), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)]))
         self.story.append(table_contactos)
-        self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.styles['SubTitle']))
-        self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.styles['Body']))
-        self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.styles['SubTitle']))
-        self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.styles['Body']))
-        self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.styles['SubTitle']))
+        self.story.append(Spacer(1, 0.3*inch))
         
-        firma_buffer = self._process_signature_image(self.data['firma_img_array'])
-        if firma_buffer:
-            firma_image = PlatypusImage(firma_buffer, width=2.5*inch, height=0.8*inch, kind='proportional')
+        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_subtitle))
+        self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
+        self.story.append(Spacer(1, 0.3*inch))
+
+        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_subtitle))
+        self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
+        self.story.append(Spacer(1, 0.3*inch))
+
+        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_subtitle))
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_img:
+            firma_path = temp_img.name
+        try:
+            self.data['firma_img_pil'].save(firma_path)
+            firma_image = PlatypusImage(firma_path, width=2.5*inch, height=0.8*inch)
             firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
-                              <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
-                              <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                              <b>Consentimiento Vía:</b> Portal Web v10.5"""
-            table_firma = Table([[firma_image, Paragraph(firma_texto, self.styles['Body'])]], colWidths=[2.8*inch, 4.2*inch])
+                                <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
+                                <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
+                                <b>Consentimiento Vía:</b> Portal Web v10.5"""
+            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_body)]], colWidths=[2.8*inch, 3.7*inch])
             table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
             self.story.append(table_firma)
+        finally:
+            if os.path.exists(firma_path):
+                os.unlink(firma_path)
         
         doc.build(self.story)
+        return pdf_path # Se retorna la ruta del archivo PDF temporal generado
 
 # --- 6. CONFIGURACIÓN DE CONEXIONES Y SECRETOS ---
+# (Sin cambios en esta sección)
 try:
     if "google_sheet_id" not in st.secrets:
         st.error("🚨 Error Crítico: Faltan secretos de configuración. Revisa tu archivo secrets.toml")
         st.stop()
+        
     private_key = st.secrets["private_key"].replace('\\n', '\n')
-    creds_info = {"type": st.secrets["type"], "project_id": st.secrets["project_id"], "private_key_id": st.secrets["private_key_id"], "private_key": private_key, "client_email": st.secrets["client_email"], "client_id": st.secrets["client_id"], "auth_uri": st.secrets["auth_uri"], "token_uri": st.secrets["token_uri"], "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"], "client_x509_cert_url": st.secrets["client_x509_cert_url"]}
+    creds_info = {
+        "type": st.secrets["type"], "project_id": st.secrets["project_id"],
+        "private_key_id": st.secrets["private_key_id"], "private_key": private_key,
+        "client_email": st.secrets["client_email"], "client_id": st.secrets["client_id"],
+        "auth_uri": st.secrets["auth_uri"], "token_uri": st.secrets["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+    }
     GOOGLE_SHEET_ID = st.secrets["google_sheet_id"]
     DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
     scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+    
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
     gc = gspread.authorize(creds)
     worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
     drive_service = build('drive', 'v3', credentials=creds)
+
 except Exception as e:
     st.error(f"🚨 Ha ocurrido un error inesperado durante la configuración inicial.")
     st.error(f"Detalle técnico del error: {e}")
     st.stop()
 
-# --- 7. FUNCIÓN PARA ENVIAR CORREO ---
-def send_email_with_attachment(recipient_email, subject, body, pdf_buffer, filename):
+
+# --- 7. FUNCIÓN PARA ENVIAR CORREO (MODIFICADA) ---
+def send_email_with_attachment(recipient_email, subject, body, pdf_path, filename):
     sender_email = st.secrets.email_credentials.smtp_user
     sender_password = st.secrets.email_credentials.smtp_password
     smtp_server = st.secrets.email_credentials.smtp_server
     smtp_port = int(st.secrets.email_credentials.smtp_port)
+
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'html'))
-    pdf_buffer.seek(0)
-    part = MIMEApplication(pdf_buffer.read(), Name=filename)
+    
+    # SOLUCIÓN: Se lee el archivo desde la ruta temporal para adjuntarlo
+    with open(pdf_path, "rb") as f:
+        part = MIMEApplication(f.read(), Name=filename)
     part['Content-Disposition'] = f'attachment; filename="{filename}"'
     msg.attach(part)
+    
     context = smtplib.ssl.create_default_context()
     with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
         server.login(sender_email, sender_password)
         server.send_message(msg)
 
 # --- 8. INTERFAZ DE USUARIO ---
+# (Sin cambios en esta sección)
 try:
-    st.image('LOGO FERREINOX SAS BIC 2024.png', width=350)
-except Exception as e:
-    st.image("https://placehold.co/350x120/0D47A1/FFFFFF?text=Ferreinox+S.A.S.+BIC", width=350)
-    st.warning(f"No se pudo cargar el logo principal. Error: {e}")
+    st.image('LOGO FERREINOX SAS BIC 2024.png', width=300)
+except Exception:
+    st.image("https://placehold.co/300x100/0D47A1/FFFFFF?text=Ferreinox+S.A.S.+BIC", width=300)
 
+st.title("Portal de Vinculación y Autorización de Datos")
 st.markdown("---")
 
 if 'terms_accepted' not in st.session_state:
@@ -269,11 +288,14 @@ if not st.session_state.terms_accepted:
         st.markdown(get_texto_tratamiento_datos("[Su Nombre]", "[Su Empresa]", "[Su NIT]"), unsafe_allow_html=True)
         st.subheader("Autorización para Consulta en Centrales de Riesgo (Habeas Data)")
         st.markdown(get_texto_habeas_data("[Su Nombre]", "[Su Empresa]", "[Su NIT]", "[Su Correo]"), unsafe_allow_html=True)
+
     st.button("He leído y acepto los términos para continuar", on_click=accept_terms, use_container_width=True)
+
 else:
     with st.form(key="formulario_principal"):
         st.header("👤 Formulario de Vinculación")
         st.markdown("Por favor, complete todos los campos a continuación.")
+
         st.subheader("Datos de la Empresa")
         col1, col2 = st.columns(2)
         with col1:
@@ -286,6 +308,7 @@ else:
             ciudad = st.text_input("Ciudad*", placeholder="Pereira")
             correo = st.text_input("Correo para Notificaciones y Facturas*", placeholder="facturacion@empresa.com")
             celular = st.text_input("Celular de Contacto General", placeholder="3101234567")
+
         st.subheader("Datos del Representante Legal")
         col3, col4, col5 = st.columns(3)
         with col3:
@@ -295,6 +318,7 @@ else:
         with col5:
             tipo_id = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"])
             lugar_exp_id = st.text_input("Ciudad de Expedición del ID*", placeholder="Pereira")
+
         st.subheader("Información de Contactos")
         col6, col7 = st.columns(2)
         with col6:
@@ -307,20 +331,22 @@ else:
             pagos_nombre = st.text_input("Nombre (Pagos)", key="pagos_nombre")
             pagos_correo = st.text_input("Correo (Pagos)", key="pagos_correo")
             pagos_celular = st.text_input("Celular (Pagos)", key="pagos_celular")
+        
         st.subheader("Información Logística")
         lugares_entrega = st.text_area("Lugares de entrega autorizados (direcciones)", placeholder="Sede Principal: Cr 13 #19-26, Pereira\nBodega: Km 5 Vía Cerritos, Bodega 4")
         requisitos_entrega = st.text_area("Requisitos para la entrega de mercancía", placeholder="Dejar en portería a nombre de Juan Valdés. Requiere sello de recibido.")
+        
         st.subheader("✍️ Firma Digital de Aceptación")
         st.caption("El Representante Legal debe firmar en el siguiente recuadro para validar toda la información y autorizaciones.")
-        canvas_result = st_canvas(fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, drawing_mode="freedraw", key="canvas_firma")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
+            background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma"
+        )
+        
         submit_button = st.form_submit_button(label="✅ Finalizar y Enviar Formulario Firmado", use_container_width=True)
 
-    # --- 9. LÓGICA DE PROCESAMIENTO ---
+    # --- 9. LÓGICA DE PROCESAMIENTO (MODIFICADA) ---
     if submit_button:
-        # Añadido para depuración en caso de que el error persista. Se puede comentar luego.
-        if canvas_result.image_data is not None:
-             st.write(f"Debug: Image data type: {type(canvas_result.image_data)}, Shape: {canvas_result.image_data.shape}")
-
         campos_obligatorios = [razon_social, nit, direccion, ciudad, correo, rep_legal, cedula_rep_legal, lugar_exp_id, nombre_comercial]
         if not all(campos_obligatorios):
             st.warning("⚠️ Por favor, complete todos los campos marcados con *.")
@@ -329,16 +355,29 @@ else:
         else:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             doc_id = f"FER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{nit}"
+            
             with st.spinner("Procesando su solicitud... Este proceso puede tardar un momento. ⏳"):
+                pdf_file_path = None # Inicializar la variable
                 try:
-                    form_data = {'razon_social': razon_social, 'nombre_comercial': nombre_comercial, 'nit': nit, 'direccion': direccion, 'ciudad': ciudad, 'telefono': telefono, 'celular': celular, 'correo': correo, 'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id, 'lugar_exp_id': lugar_exp_id, 'compras_nombre': compras_nombre, 'compras_correo': compras_correo, 'compras_celular': compras_celular, 'pagos_nombre': pagos_nombre, 'pagos_correo': pagos_correo, 'pagos_celular': pagos_celular, 'lugares_entrega': lugares_entrega, 'requisitos_entrega': requisitos_entrega, 'firma_img_array': canvas_result.image_data}
+                    form_data = {
+                        'razon_social': razon_social, 'nombre_comercial': nombre_comercial, 'nit': nit, 
+                        'direccion': direccion, 'ciudad': ciudad, 'telefono': telefono, 'celular': celular,
+                        'correo': correo, 'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal,
+                        'tipo_id': tipo_id, 'lugar_exp_id': lugar_exp_id, 'compras_nombre': compras_nombre,
+                        'compras_correo': compras_correo, 'compras_celular': compras_celular,
+                        'pagos_nombre': pagos_nombre, 'pagos_correo': pagos_correo, 'pagos_celular': pagos_celular,
+                        'lugares_entrega': lugares_entrega, 'requisitos_entrega': requisitos_entrega,
+                        'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                    }
+                    
                     st.write("Paso 1/4: Generando documento PDF institucional...")
-                    pdf_buffer = io.BytesIO()
-                    pdf_gen = PDFGeneratorPlatypus(pdf_buffer, form_data)
-                    pdf_gen.generate()
+                    pdf_gen = PDFGeneratorPlatypus(form_data)
+                    pdf_file_path = pdf_gen.generate() # Obtiene la ruta del archivo temporal
+                    
                     st.write("Paso 2/4: Guardando registro en Log de Trazabilidad...")
                     log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, ciudad, telefono, celular, compras_nombre, compras_correo, pagos_nombre, pagos_correo, "Enviado y Notificado"]
                     worksheet.append_row(log_row, value_input_option='USER_ENTERED')
+                    
                     st.write("Paso 3/4: Enviando correo de confirmación al cliente...")
                     file_name = f"Actualizacion_Datos_{razon_social.replace(' ', '_')}_{nit}.pdf"
                     email_body = f"""
@@ -351,16 +390,21 @@ else:
                     <p>Agradecemos su confianza en Ferreinox S.A.S. BIC.</p><br>
                     <p><i>Este es un mensaje automático, por favor no responda a este correo.</i></p>
                     """
-                    send_email_with_attachment(correo, f"Confirmación de Vinculación - {razon_social}", email_body, pdf_buffer, file_name)
+                    send_email_with_attachment(correo, f"Confirmación de Vinculación - {razon_social}", email_body, pdf_file_path, file_name)
+
                     st.write("Paso 4/4: Archivando PDF en el repositorio digital...")
-                    pdf_buffer.seek(0)
                     file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
-                    media = MediaFileUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
-                    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
+                    # SOLUCIÓN TypeError: Se usa la ruta del archivo temporal en lugar del buffer en memoria
+                    media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
+                    file = drive_service.files().create(
+                        body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True
+                    ).execute()
+
                     st.balloons()
                     st.success(f"**¡Proceso Finalizado Exitosamente!**")
                     st.markdown(f"El formulario para **{razon_social}** ha sido generado, archivado y enviado a su correo electrónico.")
                     st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({file.get('webViewLink')})")
+
                 except Exception as e:
                     st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Por favor, intente de nuevo.")
                     st.error(f"Detalle técnico: {e}")
@@ -368,3 +412,8 @@ else:
                         worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
                     except Exception as log_e:
                         st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
+                
+                finally:
+                    # Siempre nos aseguramos de eliminar el archivo temporal para no dejar basura
+                    if pdf_file_path and os.path.exists(pdf_file_path):
+                        os.unlink(pdf_file_path)
