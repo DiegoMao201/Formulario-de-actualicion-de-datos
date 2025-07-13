@@ -78,7 +78,7 @@ try:
 
     # ========================== ¡MUY IMPORTANTE! ==============================
     # REEMPLAZA ESTOS VALORES CON LOS TUYOS
-    DRIVE_FOLDER_ID = "AQUI_VA_EL_ID_DE_TU_CARPETA_DE_GOOGLE_DRIVE"
+    DRIVE_FOLDER_ID = "0AK7Y6MdgYyoHUk9PVA"
     TEMPLATE_PDF_PATH = 'plantilla.pdf' # Asegúrate que el nombre coincida con tu archivo
     # =========================================================================
 
