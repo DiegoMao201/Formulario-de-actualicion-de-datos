@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 8.4 (Corrección en Generación de PDF)
+# Versión 8.5 (Corrección en Manejo de Imagen de Firma)
 # Fecha: 12 de Julio de 2025
 # =========================================================================================
 
@@ -119,7 +119,6 @@ class PDFGenerator:
     def _draw_paragraph(self, x, y, width, text):
         # CORRECCIÓN: Se reemplaza el método de conversión de HTML a un formato más robusto
         # para evitar errores de formato en ReportLab con las etiquetas de lista.
-        # Se usan saltos de línea <br/> en lugar de la etiqueta <para> que causaba el error.
         text_for_pdf = text.replace('<ul>','').replace('</ul>','')
         text_for_pdf = text_for_pdf.replace('<li>','<br/>  •  ')
         text_for_pdf = text_for_pdf.replace('</li>','')
@@ -158,7 +157,15 @@ class PDFGenerator:
 
         self.c.setFont("Helvetica-Bold", 10)
         self.c.drawString(50, y_pos, "Firma del Representante Legal:")
-        self.c.drawImage(self.data['firma_img_pil'], 50, y_pos - 70, width=180, height=60, mask='auto')
+        
+        # --- CORRECCIÓN PARA EL MANEJO DE LA IMAGEN DE LA FIRMA ---
+        # ReportLab espera una ruta de archivo o un objeto similar a un archivo (bytes), no un objeto de imagen PIL directamente.
+        # Se convierte la imagen de la firma a un stream de bytes en memoria para que ReportLab pueda procesarla.
+        firma_buffer = io.BytesIO()
+        self.data['firma_img_pil'].save(firma_buffer, format='PNG')
+        firma_buffer.seek(0)
+        
+        self.c.drawImage(firma_buffer, 50, y_pos - 70, width=180, height=60, mask='auto')
         self.c.line(50, y_pos - 80, 230, y_pos - 80)
         self.c.setFont("Helvetica", 9)
         self.c.drawString(50, y_pos - 90, self.data['rep_legal'])
