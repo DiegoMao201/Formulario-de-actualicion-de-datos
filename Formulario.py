@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 8.2 (Análisis Inteligente de Secretos)
+# Versión 8.3 (Autenticación por Secretos Individuales)
 # Fecha: 12 de Julio de 2025
 # =========================================================================================
 
@@ -174,27 +174,41 @@ class PDFGenerator:
 
         self.c.save()
 
-# --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES (CON ANÁLISIS DE SECRETOS) ---
+# --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES (MÉTODO DE SECRETOS INDIVIDUALES) ---
 try:
-    # Paso 1: Verificar que los secretos existen
-    if "gcp_service_account" not in st.secrets or "google_sheet_id" not in st.secrets or "drive_folder_id" not in st.secrets:
-        st.error("🚨 Error Crítico: Faltan uno o más secretos en la configuración de Streamlit (gcp_service_account, google_sheet_id, drive_folder_id).")
+    # Paso 1: Verificar que todos los secretos necesarios están presentes
+    required_secrets = [
+        "type", "project_id", "private_key_id", "private_key",
+        "client_email", "client_id", "auth_uri", "token_uri",
+        "auth_provider_x509_cert_url", "client_x509_cert_url",
+        "google_sheet_id", "drive_folder_id"
+    ]
+    
+    missing_secrets = [secret for secret in required_secrets if secret not in st.secrets]
+    
+    if missing_secrets:
+        st.error(f"🚨 Error Crítico: Faltan los siguientes secretos en la configuración de Streamlit: {', '.join(missing_secrets)}")
+        st.info("Por favor, revisa las instrucciones para configurar cada secreto individualmente. Asegúrate de que los nombres coincidan exactamente.")
         st.stop()
 
-    # Paso 2: Leer y procesar el secreto de la cuenta de servicio de forma robusta
-    creds_info_raw = st.secrets["gcp_service_account"]
+    # Paso 2: Ensamblar el diccionario de credenciales desde secretos individuales
+    # Este método es más robusto para el despliegue en Streamlit Cloud.
     
-    # Si el secreto es una cadena de texto (string), se intenta decodificar como JSON.
-    # Esto da flexibilidad si el secreto fue pegado como un string JSON en lugar de una tabla TOML.
-    if isinstance(creds_info_raw, str):
-        try:
-            creds_info = json.loads(creds_info_raw)
-        except json.JSONDecodeError:
-            st.error("🚨 Error de Configuración: El secreto 'gcp_service_account' es una cadena de texto, pero no es un JSON válido.")
-            st.stop()
-    else:
-        # Si ya es un diccionario (o un objeto similar), se convierte a un dict estándar para asegurar compatibilidad.
-        creds_info = dict(creds_info_raw)
+    # Corregir el formato de la clave privada que puede ser alterado por Streamlit
+    private_key = st.secrets["private_key"].replace('\\n', '\n')
+
+    creds_info = {
+        "type": st.secrets["type"],
+        "project_id": st.secrets["project_id"],
+        "private_key_id": st.secrets["private_key_id"],
+        "private_key": private_key,
+        "client_email": st.secrets["client_email"],
+        "client_id": st.secrets["client_id"],
+        "auth_uri": st.secrets["auth_uri"],
+        "token_uri": st.secrets["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+    }
 
     GOOGLE_SHEET_ID = st.secrets["google_sheet_id"]
     DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
@@ -214,11 +228,11 @@ try:
 
 except gspread.exceptions.SpreadsheetNotFound:
     st.error(f"🚨 Error de Configuración: No se pudo encontrar la hoja de Google Sheets.")
-    st.error(f"El ID de la hoja que se intentó abrir fue: '{st.secrets.get('google_sheet_id')}'")
+    st.error(f"El ID de la hoja que se intentó abrir fue: '{st.secrets.get('google_sheet_id', 'NO ENCONTRADO')}'")
     st.warning("Por favor, verifica los siguientes puntos:")
-    st.markdown("""
-    1.  **El `google_sheet_id` en tus secretos de Streamlit es correcto.** Cópialo directamente desde la URL de tu Google Sheet.
-    2.  **Has compartido la hoja de cálculo con el correo de la cuenta de servicio.** El correo se encuentra dentro de tu archivo de secretos (`client_email`) y debe tener permisos de **Editor** en la hoja.
+    st.markdown(f"""
+    1.  **El `google_sheet_id` en tus secretos de Streamlit es correcto.**
+    2.  **Has compartido la hoja de cálculo con el correo de la cuenta de servicio:** `{st.secrets.get('client_email', 'NO ENCONTRADO')}`. Este correo debe tener permisos de **Editor** en la hoja.
     """)
     st.stop()
 except Exception as e:
@@ -353,3 +367,4 @@ if submit_button:
                     worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
                 except Exception as log_e:
                     st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
+
