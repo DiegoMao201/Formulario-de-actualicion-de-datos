@@ -49,11 +49,11 @@ try:
     
     # Conexión a Google Drive
     drive_service = build('drive', 'v3', credentials=creds)
-    DRIVE_FOLDER_ID = st.secrets.get("drive_folder_id", "REEMPLAZA_ID_CARPETA_DRIVE")
+    DRIVE_FOLDER_ID = st.secrets.get("drive_folder_id", "0AK7Y6MdgYyoHUk9PVA")
 
     # Conexión a Google Sheets
     gc = gspread.service_account(credentials=creds)
-    GOOGLE_SHEET_ID = st.secrets.get("google_sheet_id", "REEMPLAZA_ID_HOJA_CALCULO")
+    GOOGLE_SHEET_ID = st.secrets.get("google_sheet_id", "1Rwv-sk9EcETAsAkyiQlEejGwjhGRqX0gnRplnyCgu5E/edit?gid=0#gid=0")
     worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
 
 except Exception as e:
