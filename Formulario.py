@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 8.5 (Corrección en Manejo de Imagen de Firma)
+# Versión 9.0 (Mejora de Validez Legal con Notificación por Correo y Corrección de PDF)
 # Fecha: 12 de Julio de 2025
 # =========================================================================================
 
@@ -20,9 +20,14 @@ from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader # <-- IMPORTANTE: Librería para manejar imágenes en memoria
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 # --- 2. TEXTOS LEGALES (CONSTANTES) ---
 TEXTO_TRATAMIENTO_DATOS = """
@@ -36,7 +41,6 @@ la cual está disponible en sus instalaciones y en el sitio web www.ferreinox.co
 </ul>
 La empresa se compromete a almacenar mis datos en entornos seguros, protegiéndolos del acceso no autorizado y manteniendo la confidencialidad.
 """
-
 TEXTO_HABEAS_DATA = """
 En ejercicio de mi derecho a la autodeterminación informática, autorizo de manera voluntaria, expresa e irrevocable a
 FERREINOX S.A.S. BIC (o a quien represente sus derechos en el futuro) para:
@@ -47,7 +51,6 @@ FERREINOX S.A.S. BIC (o a quien represente sus derechos en el futuro) para:
 </ul>
 Asimismo, autorizo que la comunicación previa al reporte negativo, exigida por la ley, pueda ser enviada a través de un mensaje de datos al correo electrónico que suministraré en este formulario.
 """
-
 TEXTO_DERECHOS = """
 Usted tiene derecho a:
 <ul>
@@ -66,7 +69,6 @@ Puede ejercer sus derechos a través de los siguientes canales:
     <li><b>Página web:</b> www.ferreinox.co</li>
 </ul>
 """
-
 TEXTO_VERACIDAD = """
 Certifico que toda la información que proporciono en este formulario es veraz, completa, exacta y actualizada.
 Entiendo que cualquier error en la información suministrada será de mi exclusiva responsabilidad.
@@ -117,14 +119,11 @@ class PDFGenerator:
         self.c.restoreState()
 
     def _draw_paragraph(self, x, y, width, text):
-        # CORRECCIÓN: Se reemplaza el método de conversión de HTML a un formato más robusto
-        # para evitar errores de formato en ReportLab con las etiquetas de lista.
         text_for_pdf = text.replace('<ul>','').replace('</ul>','')
-        text_for_pdf = text_for_pdf.replace('<li>','<br/>  •  ')
+        text_for_pdf = text_for_pdf.replace('<li>','<br/>  •   ')
         text_for_pdf = text_for_pdf.replace('</li>','')
         text_for_pdf = text_for_pdf.replace('\n', ' ')
         text_for_pdf = ' '.join(text_for_pdf.split())
-
         p = Paragraph(text_for_pdf, self.paragraph_style)
         p.wrapOn(self.c, width, self.height)
         p_height = p.height
@@ -158,26 +157,27 @@ class PDFGenerator:
         self.c.setFont("Helvetica-Bold", 10)
         self.c.drawString(50, y_pos, "Firma del Representante Legal:")
         
-        # --- CORRECCIÓN PARA EL MANEJO DE LA IMAGEN DE LA FIRMA ---
-        # ReportLab espera una ruta de archivo o un objeto similar a un archivo (bytes), no un objeto de imagen PIL directamente.
-        # Se convierte la imagen de la firma a un stream de bytes en memoria para que ReportLab pueda procesarla.
+        # --- CORRECCIÓN CLAVE PARA EL MANEJO DE LA IMAGEN DE LA FIRMA ---
+        # Se convierte la imagen a un stream de bytes y se usa ImageReader de ReportLab.
         firma_buffer = io.BytesIO()
         self.data['firma_img_pil'].save(firma_buffer, format='PNG')
         firma_buffer.seek(0)
         
-        self.c.drawImage(firma_buffer, 50, y_pos - 70, width=180, height=60, mask='auto')
+        # Se envuelve el buffer en ImageReader para que ReportLab lo procese correctamente.
+        self.c.drawImage(ImageReader(firma_buffer), 50, y_pos - 70, width=180, height=60, mask='auto')
         self.c.line(50, y_pos - 80, 230, y_pos - 80)
         self.c.setFont("Helvetica", 9)
         self.c.drawString(50, y_pos - 90, self.data['rep_legal'])
 
         data_trazabilidad = [
-            ['Concepto', 'Registro'],
+            ['Concepto de Trazabilidad', 'Registro'],
             ['ID Único del Documento:', self.data.get('doc_id', '')],
             ['Fecha y Hora de Firma:', self.data.get('timestamp', '')],
-            ['Método de Consentimiento:', 'Aceptación en portal web tras visualización de términos.'],
-            ['Correo Electrónico Asociado:', self.data.get('correo', '')]
+            ['Correo Electrónico Asociado:', self.data.get('correo', '')],
+            ['Consentimiento Registrado Vía:', 'Portal Web Institucional v9.0'],
+            ['IP de Origen:', 'No registrada (Estándar Streamlit Cloud)']
         ]
-        tabla = Table(data_trazabilidad, colWidths=[1.8*inch, 2.5*inch], rowHeights=0.3*inch)
+        tabla = Table(data_trazabilidad, colWidths=[2*inch, 2.5*inch], rowHeights=0.3*inch)
         tabla.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (1, 0), self.color_primary),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -185,85 +185,63 @@ class PDFGenerator:
             ('GRID', (0,0), (-1,-1), 1, self.color_secondary)
         ]))
         tabla.wrapOn(self.c, self.width, self.height)
-        tabla.drawOn(self.c, 300, y_pos - 90)
+        tabla.drawOn(self.c, 280, y_pos - 90)
 
         self.c.save()
 
-# --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES (MÉTODO DE SECRETOS INDIVIDUALES) ---
+# --- 6. CONFIGURACIÓN DE CONEXIONES Y SECRETOS ---
+# --- 6.A. INSTRUCCIONES PARA NUEVOS SECRETOS DE CORREO ---
+# Para activar la notificación por correo, debes añadir los siguientes secretos a tu cuenta de Streamlit:
+# 1. sender_email: El correo desde el cual se enviarán las notificaciones (ej: "notificaciones.ferreinox@gmail.com").
+# 2. sender_password: La contraseña de aplicación de ese correo. IMPORTANTE: No uses tu contraseña principal.
+#                    Busca "Crear contraseñas de aplicación" para tu proveedor de correo (Gmail, Outlook, etc.).
+# 3. smtp_server: El servidor de correo (ej: "smtp.gmail.com").
+# 4. smtp_port: El puerto del servidor (ej: 587 para TLS).
 try:
-    # Paso 1: Verificar que todos los secretos necesarios están presentes
     required_secrets = [
-        "type", "project_id", "private_key_id", "private_key",
-        "client_email", "client_id", "auth_uri", "token_uri",
-        "auth_provider_x509_cert_url", "client_x509_cert_url",
-        "google_sheet_id", "drive_folder_id"
+        "type", "project_id", "private_key_id", "private_key", "client_email",
+        "client_id", "auth_uri", "token_uri", "auth_provider_x509_cert_url",
+        "client_x509_cert_url", "google_sheet_id", "drive_folder_id",
+        # Nuevos secretos para el envío de correo
+        "sender_email", "sender_password", "smtp_server", "smtp_port"
     ]
-    
     missing_secrets = [secret for secret in required_secrets if secret not in st.secrets]
-    
     if missing_secrets:
-        st.error(f"🚨 Error Crítico: Faltan los siguientes secretos en la configuración de Streamlit: {', '.join(missing_secrets)}")
-        st.info("Por favor, revisa las instrucciones para configurar cada secreto individualmente. Asegúrate de que los nombres coincidan exactamente.")
+        st.error(f"🚨 Error Crítico: Faltan secretos en la configuración: {', '.join(missing_secrets)}")
         st.stop()
 
-    # Paso 2: Ensamblar el diccionario de credenciales desde secretos individuales
-    # Este método es más robusto para el despliegue en Streamlit Cloud.
-    
-    # Corregir el formato de la clave privada que puede ser alterado por Streamlit
     private_key = st.secrets["private_key"].replace('\\n', '\n')
-
     creds_info = {
-        "type": st.secrets["type"],
-        "project_id": st.secrets["project_id"],
-        "private_key_id": st.secrets["private_key_id"],
-        "private_key": private_key,
-        "client_email": st.secrets["client_email"],
-        "client_id": st.secrets["client_id"],
-        "auth_uri": st.secrets["auth_uri"],
-        "token_uri": st.secrets["token_uri"],
+        "type": st.secrets["type"], "project_id": st.secrets["project_id"],
+        "private_key_id": st.secrets["private_key_id"], "private_key": private_key,
+        "client_email": st.secrets["client_email"], "client_id": st.secrets["client_id"],
+        "auth_uri": st.secrets["auth_uri"], "token_uri": st.secrets["token_uri"],
         "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
         "client_x509_cert_url": st.secrets["client_x509_cert_url"]
     }
-
     GOOGLE_SHEET_ID = st.secrets["google_sheet_id"]
     DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
     scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
     
-    # Paso 3: Crear credenciales
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
     
-    # Paso 4: Conectar a Google Sheets
-    with st.spinner("Conectando con el registro de trazabilidad (Google Sheets)..."):
-        gc = gspread.authorize(creds)
-        worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
-    
-    # Paso 5: Conectar a Google Drive
-    with st.spinner("Conectando con el archivo digital (Google Drive)..."):
-        drive_service = build('drive', 'v3', credentials=creds)
+    gc = gspread.authorize(creds)
+    worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
+    drive_service = build('drive', 'v3', credentials=creds)
 
-except gspread.exceptions.SpreadsheetNotFound:
-    st.error(f"🚨 Error de Configuración: No se pudo encontrar la hoja de Google Sheets.")
-    st.error(f"El ID de la hoja que se intentó abrir fue: '{st.secrets.get('google_sheet_id', 'NO ENCONTRADO')}'")
-    st.warning("Por favor, verifica los siguientes puntos:")
-    st.markdown(f"""
-    1.  **El `google_sheet_id` en tus secretos de Streamlit es correcto.**
-    2.  **Has compartido la hoja de cálculo con el correo de la cuenta de servicio:** `{st.secrets.get('client_email', 'NO ENCONTRADO')}`. Este correo debe tener permisos de **Editor** en la hoja.
-    """)
-    st.stop()
 except Exception as e:
-    st.error(f"🚨 Ha ocurrido un error inesperado durante la configuración con las APIs de Google.")
+    st.error(f"🚨 Ha ocurrido un error inesperado durante la configuración inicial.")
     st.error(f"Detalle técnico del error: {e}")
-    st.warning("Verifica que las APIs de Google Drive y Google Sheets estén activadas en tu proyecto de Google Cloud.")
+    st.warning("Verifica que las credenciales y los secretos de Google y del correo electrónico sean correctos.")
     st.stop()
 
-# --- 7. INTERFAZ DE USUARIO CON STREAMLIT ---
+# --- 7. INTERFAZ DE USUARIO ---
 if 'terms_viewed' not in st.session_state:
     st.session_state.terms_viewed = False
 
 def enable_authorization():
     st.session_state.terms_viewed = True
 
-# Asegúrate de que el logo esté en la misma carpeta o proporciona la ruta completa
 try:
     st.image('LOGO FERREINOX SAS BIC 2024.png', width=250)
 except Exception:
@@ -311,18 +289,33 @@ with st.form(key="formulario_principal"):
     st.header("✍️ Firma Digital")
     st.caption("Por favor, firme en el recuadro para sellar su consentimiento.")
     canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0)",  # Fondo transparente
-        stroke_width=3,
-        stroke_color="#000000",
-        background_color="#FFFFFF",
-        height=200,
-        drawing_mode="freedraw",
-        key="canvas_firma"
+        fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
+        background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma"
     )
     
     submit_button = st.form_submit_button(label="✅ Aceptar y Enviar Documento Firmado", use_container_width=True)
 
-# --- 8. LÓGICA DE PROCESAMIENTO AL ENVIAR ---
+# --- 8. LÓGICA DE PROCESAMIENTO ---
+# --- 8.A. FUNCIÓN PARA ENVIAR CORREO DE CONFIRMACIÓN ---
+def send_email_with_attachment(recipient_email, subject, body, pdf_buffer, filename):
+    msg = MIMEMultipart()
+    msg['From'] = st.secrets["sender_email"]
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+    
+    msg.attach(MIMEText(body, 'html'))
+    
+    pdf_buffer.seek(0)
+    part = MIMEApplication(pdf_buffer.read(), Name=filename)
+    part['Content-Disposition'] = f'attachment; filename="{filename}"'
+    msg.attach(part)
+    
+    server = smtplib.SMTP(st.secrets["smtp_server"], st.secrets["smtp_port"])
+    server.starttls()
+    server.login(st.secrets["sender_email"], st.secrets["sender_password"])
+    server.send_message(msg)
+    server.quit()
+
 if submit_button:
     # Validaciones de campos
     campos_validos = all([rep_legal, cedula_rep_legal, razon_social, nit, correo])
@@ -336,48 +329,61 @@ if submit_button:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         doc_id = f"FER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{nit}"
         
-        with st.spinner("Procesando y registrando trazabilidad... ⏳"):
+        with st.spinner("Procesando su solicitud... ⏳"):
             try:
-                st.write("Paso 1/3: Guardando registro en Log de Trazabilidad...")
-                log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, "Enviado"]
+                # PASO 1: Guardar registro en Google Sheets
+                st.write("Paso 1/4: Guardando registro en Log de Trazabilidad...")
+                log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, "Enviado y Notificado"]
                 worksheet.append_row(log_row, value_input_option='USER_ENTERED')
                 
-                st.write("Paso 2/3: Generando documento PDF institucional...")
+                # PASO 2: Generar el documento PDF
+                st.write("Paso 2/4: Generando documento PDF institucional...")
                 form_data = {
                     'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal,
                     'razon_social': razon_social, 'nit': nit, 'correo': correo,
                     'doc_id': doc_id, 'timestamp': timestamp,
                     'texto_tratamiento': TEXTO_TRATAMIENTO_DATOS, 'texto_habeas': TEXTO_HABEAS_DATA,
+                    'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                 }
-                # Convertir la imagen del canvas a un objeto de imagen PIL
-                form_data['firma_img_pil'] = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-
                 pdf_buffer = io.BytesIO()
                 pdf_gen = PDFGenerator(pdf_buffer, form_data)
                 pdf_gen.generate()
-                pdf_buffer.seek(0)
                 
-                st.write("Paso 3/3: Archivando PDF en Google Drive...")
-                file_name = f"Consentimiento_{razon_social.replace(' ', '_')}_{nit}.pdf"
+                # PASO 3: Enviar correo de notificación con el PDF adjunto
+                st.write("Paso 3/4: Enviando correo de confirmación al cliente...")
+                file_name = f"Consentimiento_Ferreinox_{razon_social.replace(' ', '_')}_{nit}.pdf"
+                email_body = f"""
+                <h3>Confirmación de Vinculación y Autorización - Ferreinox S.A.S. BIC</h3>
+                <p>Estimado(a) <b>{rep_legal}</b>,</p>
+                <p>Reciba un cordial saludo.</p>
+                <p>Este correo confirma que hemos recibido y procesado exitosamente el formulario de vinculación y autorización de tratamiento de datos para la empresa <b>{razon_social}</b> (NIT: {nit}).</p>
+                <p>Adjunto a este mensaje encontrará el documento PDF con la constancia de su consentimiento y la firma registrada.</p>
+                <p><b>ID del Documento:</b> {doc_id}<br>
+                   <b>Fecha de registro:</b> {timestamp}</p>
+                <p>Agradecemos su confianza en Ferreinox S.A.S. BIC.</p>
+                <br>
+                <p><i>Este es un mensaje automático, por favor no responda a este correo.</i></p>
+                """
+                send_email_with_attachment(correo, f"Confirmación de Vinculación - {razon_social}", email_body, pdf_buffer, file_name)
+
+                # PASO 4: Archivar el PDF en Google Drive
+                st.write("Paso 4/4: Archivando PDF en el repositorio digital...")
+                pdf_buffer.seek(0)
                 file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
                 media = MediaFileUpload(pdf_buffer, mimetype='application/pdf', resumable=True)
-                
-                # Sube el archivo a Drive, asegurando compatibilidad con Unidades Compartidas
                 file = drive_service.files().create(
-                    body=file_metadata,
-                    media_body=media,
-                    fields='id, webViewLink',
-                    supportsAllDrives=True
+                    body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True
                 ).execute()
 
                 st.balloons()
                 st.success(f"**¡Proceso Finalizado Exitosamente!**")
-                st.markdown(f"El documento para **{razon_social}** ha sido generado y archivado de forma segura.")
+                st.markdown(f"El documento para **{razon_social}** ha sido generado, archivado y enviado a su correo electrónico.")
                 st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({file.get('webViewLink')})")
 
             except Exception as e:
-                st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Detalle técnico: {e}")
-                # Intenta registrar el error en la hoja de cálculo para tener trazabilidad
+                st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Por favor, intente de nuevo.")
+                st.error(f"Detalle técnico: {e}")
+                # Intenta registrar el error en la hoja de cálculo
                 try:
                     worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
                 except Exception as log_e:
