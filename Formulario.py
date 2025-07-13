@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 10.2 (Corrección de error de sintaxis en la definición del pie de página)
+# Versión 10.3 (Solución Definitiva de TypeError y Corrección de Layout de PDF)
 # Fecha: 12 de Julio de 2025
 # =================================================================================================
 
@@ -12,13 +12,15 @@ import io
 from PIL import Image
 from datetime import datetime
 import gspread
+import tempfile # <--- LIBRERÍA NUEVA para manejo de archivos temporales
+import os       # <--- LIBRERÍA NUEVA para operaciones del sistema (eliminar archivo)
 
 # --- Librerías de ReportLab para PDF Profesional (Platypus) ---
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
-from reportlab.lib.units import inch, cm
+from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
 
 # --- Librerías para Conexiones de Google y Correo ---
@@ -48,8 +50,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. TEXTOS LEGALES DINÁMICOS ---
-# Ahora son funciones que insertan los datos del cliente en el texto.
-
 def get_texto_tratamiento_datos(nombre_rep, razon_social, nit):
     return f"""
         Yo, <b>{nombre_rep}</b>, mayor de edad, identificado(a) como aparece al pie de mi firma, actuando en nombre
@@ -102,42 +102,10 @@ class PDFGeneratorPlatypus:
         
         self.styles = getSampleStyleSheet()
         
-        self.style_title = ParagraphStyle(
-            name='Title',
-            parent=self.styles['h1'],
-            fontName='Helvetica-Bold',
-            fontSize=14,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#0D47A1')
-        )
-        
-        self.style_subtitle = ParagraphStyle(
-            name='SubTitle',
-            parent=self.styles['h2'],
-            fontName='Helvetica-Bold',
-            fontSize=11,
-            alignment=TA_LEFT,
-            textColor=colors.HexColor('#0D47A1'),
-            spaceAfter=6
-        )
-
-        self.style_body = ParagraphStyle(
-            name='Body',
-            parent=self.styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9,
-            alignment=TA_JUSTIFY,
-            leading=12
-        )
-
-        self.style_footer = ParagraphStyle(
-            name='Footer',
-            parent=self.styles['Normal'],
-            fontName='Helvetica',
-            fontSize=8,
-            alignment=TA_CENTER,
-            textColor=colors.grey
-        )
+        self.style_title = ParagraphStyle(name='Title', parent=self.styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#0D47A1'))
+        self.style_subtitle = ParagraphStyle(name='SubTitle', parent=self.styles['h2'], fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=colors.HexColor('#0D47A1'), spaceAfter=8)
+        self.style_body = ParagraphStyle(name='Body', parent=self.styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
+        self.style_footer = ParagraphStyle(name='Footer', parent=self.styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_CENTER, textColor=colors.grey)
 
     def _header(self, canvas, doc):
         canvas.saveState()
@@ -151,15 +119,21 @@ class PDFGeneratorPlatypus:
 
     def _footer(self, canvas, doc):
         canvas.saveState()
-        # --- LÍNEA CORREGIDA ---
-        # [cite_start]Se eliminó el texto "[cite: 2]" que causaba el error de sintaxis.
-        p_footer = Paragraph("EVOLUCIONANDO JUNTOS", self.style_footer)
-        w, h = p_footer.wrap(doc.width, doc.bottomMargin)
-        p_footer.drawOn(canvas, doc.leftMargin, h)
+        # --- PIE DE PÁGINA CORREGIDO CON UNA TABLA PARA EVITAR SUPERPOSICIÓN ---
+        footer_table = Table(
+            [[
+                Paragraph("EVOLUCIONANDO JUNTOS", self.style_footer),
+                Paragraph(f"Página {doc.page}", self.style_footer)
+            ]],
+            colWidths=[doc.width/2, doc.width/2]
+        )
+        footer_table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (0,0), 'LEFT'),
+            ('ALIGN', (1,0), (1,0), 'RIGHT')
+        ]))
         
-        p_page = Paragraph(f"Página {doc.page}", self.style_footer)
-        w, h = p_page.wrap(doc.width, doc.bottomMargin)
-        p_page.drawOn(canvas, doc.width - w + doc.rightMargin, h)
+        w, h = footer_table.wrap(doc.width, doc.bottomMargin)
+        footer_table.drawOn(canvas, doc.leftMargin, h)
         canvas.restoreState()
 
     def generate(self):
@@ -169,7 +143,7 @@ class PDFGeneratorPlatypus:
         doc.addPageTemplates([template])
 
         self.story.append(Paragraph("ACTUALIZACIÓN Y AUTORIZACIÓN DE DATOS DE CLIENTE", self.style_title))
-        self.story.append(Spacer(1, 0.3*inch))
+        self.story.append(Spacer(1, 0.4*inch))
         
         self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_subtitle))
         
@@ -185,64 +159,56 @@ class PDFGeneratorPlatypus:
             [Paragraph('<b>Correo para Notificaciones:</b>', self.style_body), Paragraph(self.data.get('correo', ''), self.style_body)],
         ]
         table_basicos = Table(datos_basicos, colWidths=[2.2*inch, 4.3*inch])
-        table_basicos.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
+        table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
         self.story.append(table_basicos)
-        self.story.append(Spacer(1, 0.3*inch))
+        self.story.append(Spacer(1, 0.4*inch))
 
         datos_contactos = [
             [Paragraph('<b>CONTACTO DE COMPRAS</b>', self.style_body), Paragraph('<b>CONTACTO DE PAGOS</b>', self.style_body)],
-            [
-                Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/>
-                                <b>Correo:</b> {self.data.get('compras_correo', '')}<br/>
-                                <b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.style_body),
-                Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/>
-                                <b>Correo:</b> {self.data.get('pagos_correo', '')}<br/>
-                                <b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.style_body)
-            ]
+            [Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.style_body),
+             Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.style_body)]
         ]
         table_contactos = Table(datos_contactos, colWidths=[3.25*inch, 3.25*inch])
-        table_contactos.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E0E0E0')),
-            ('ALIGN', (0,0), (-1,0), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ]))
+        table_contactos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E0E0E0')), ('ALIGN', (0,0), (-1,0), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
         self.story.append(table_contactos)
-        self.story.append(Spacer(1, 0.3*inch))
+        self.story.append(Spacer(1, 0.4*inch))
         
         self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_subtitle))
         self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
-        self.story.append(Spacer(1, 0.3*inch))
+        self.story.append(Spacer(1, 0.4*inch))
 
         self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_subtitle))
         self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
-        self.story.append(Spacer(1, 0.3*inch))
+        self.story.append(Spacer(1, 0.4*inch))
 
         self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_subtitle))
         
-        firma_buffer = io.BytesIO()
-        self.data['firma_img_pil'].save(firma_buffer, format='PNG')
-        firma_buffer.seek(0)
-        firma_image = PlatypusImage(firma_buffer, width=2.5*inch, height=0.8*inch)
+        # --- SOLUCIÓN DEFINITIVA PARA EL ERROR DE IMAGEN ---
+        # 1. Guardar la imagen de la firma en un archivo temporal.
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        try:
+            self.data['firma_img_pil'].save(temp_file.name)
+            temp_file.close()
 
-        firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
-                          <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
-                          <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                          <b>Consentimiento Vía:</b> Portal Web v10.2"""
+            # 2. Usar la ruta del archivo temporal en PlatypusImage.
+            firma_image = PlatypusImage(temp_file.name, width=2.5*inch, height=0.8*inch)
 
-        table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_body)]], colWidths=[2.8*inch, 3.7*inch])
-        table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-        self.story.append(table_firma)
+            firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
+                              <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
+                              <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
+                              <b>Consentimiento Vía:</b> Portal Web v10.3"""
+
+            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_body)]], colWidths=[2.8*inch, 3.7*inch])
+            table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+            self.story.append(table_firma)
+            
+            doc.build(self.story)
         
-        doc.build(self.story)
+        finally:
+            # 3. Asegurarse de eliminar el archivo temporal después de usarlo.
+            if os.path.exists(temp_file.name):
+                os.unlink(temp_file.name)
+
 
 # --- 6. CONFIGURACIÓN DE CONEXIONES Y SECRETOS ---
 try:
