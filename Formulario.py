@@ -53,7 +53,7 @@ try:
 
     # Conexión a Google Sheets
     gc = gspread.service_account(credentials=creds)
-    GOOGLE_SHEET_ID = st.secrets.get("google_sheet_id", "1Rwv-sk9EcETAsAkyiQlEejGwjhGRqX0gnRplnyCgu5E/edit?gid=0#gid=0")
+    GOOGLE_SHEET_ID = st.secrets.get("google_sheet_id", "16B3WTXW7VrFN1w_dP_BWgEXeim_gCYVvfC9P1nI19gc/edit?gid=0#gid=0")
     worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
 
 except Exception as e:
