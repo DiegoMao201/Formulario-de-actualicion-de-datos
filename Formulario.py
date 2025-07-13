@@ -30,7 +30,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
+st.set_page_config(page_title="Formulario de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
 
 # --- Institutional Colors ---
 FERREINOX_DARK_BLUE = "#0D47A1"
