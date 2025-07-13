@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 16.0 (Integración de Código de Verificación 2FA y mejoras en Sheets)
+# Versión 17.0 (Ajuste de Zona Horaria a Colombia - COT)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -14,6 +14,7 @@ import tempfile
 import os
 import numpy as np
 import random
+import pytz # <-- LIBRERÍA NUEVA PARA ZONAS HORARIAS
 
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -30,7 +31,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
-st.set_page_config(page_title="Formulario de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
+st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
 
 # --- Institutional Colors ---
 FERREINOX_DARK_BLUE = "#0D47A1"
@@ -144,10 +145,14 @@ class PDFGeneratorPlatypus:
                  nombre_firmante, id_firmante = self.data.get('rep_legal', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
             else:
                  nombre_firmante, id_firmante = self.data.get('nombre_natural', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
+            
+            # Se usa el timestamp con la hora de Colombia pasado en el diccionario de datos
+            fecha_firma = self.data.get('timestamp', 'No disponible')
+            
             firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
                 <b>Identificación:</b> {id_firmante}<br/>
-                <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v16.0 (Verificado)"""
+                <b>Fecha de Firma:</b> {fecha_firma}<br/>
+                <b>Consentimiento Vía:</b> Portal Web v17.0 (Verificado)"""
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
             self.story.append(table_firma)
@@ -231,11 +236,9 @@ except Exception:
 st.title("Portal de Vinculación y Autorización de Datos")
 st.markdown("---")
 
-# --- Inicialización del estado de la sesión ---
 def init_session_state():
     if 'terms_accepted' not in st.session_state: st.session_state.terms_accepted = False
     if 'client_type' not in st.session_state: st.session_state.client_type = None
-    if 'submitted_form' not in st.session_state: st.session_state.submitted_form = False
     if 'verification_code_sent' not in st.session_state: st.session_state.verification_code_sent = False
     if 'process_complete' not in st.session_state: st.session_state.process_complete = False
     if 'form_data_cache' not in st.session_state: st.session_state.form_data_cache = {}
@@ -244,19 +247,15 @@ def init_session_state():
     if 'final_razon_social' not in st.session_state: st.session_state.final_razon_social = ""
 init_session_state()
 
-# --- Funciones de navegación ---
-def reset_to_terms(): st.session_state.update(terms_accepted=False, client_type=None, submitted_form=False, verification_code_sent=False)
-def reset_to_selection(): st.session_state.update(client_type=None, submitted_form=False, verification_code_sent=False)
+def reset_to_terms(): st.session_state.update(terms_accepted=False, client_type=None, verification_code_sent=False)
+def reset_to_selection(): st.session_state.update(client_type=None, verification_code_sent=False)
 def full_reset():
-    keys_to_keep = [] # Mantener secretos o conexiones si es necesario
     for key in list(st.session_state.keys()):
-        if key not in keys_to_keep:
-            del st.session_state[key]
+        del st.session_state[key]
     init_session_state()
 
 # --- Flujo de la aplicación ---
 
-# 1. Proceso Completado
 if st.session_state.process_complete:
     st.success(f"**¡Proceso Finalizado Exitosamente!**")
     st.markdown(f"El formulario para **{st.session_state.final_razon_social}** ha sido generado, archivado y enviado a su correo electrónico.")
@@ -264,7 +263,6 @@ if st.session_state.process_complete:
         st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({st.session_state.final_link})")
     st.button("Realizar otra vinculación", on_click=full_reset, use_container_width=True)
 
-# 2. Pantalla de Verificación de Código
 elif st.session_state.verification_code_sent:
     st.header("🔐 Verificación de Firma")
     st.info(f"Hemos enviado un código de 6 dígitos a su correo: **{st.session_state.form_data_cache.get('correo')}**. Por favor, ingréselo para completar el proceso.")
@@ -274,9 +272,15 @@ elif st.session_state.verification_code_sent:
         if user_code == st.session_state.generated_code:
             with st.spinner("Código correcto. Finalizando proceso... ⏳"):
                 form_data = st.session_state.form_data_cache
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # --- AJUSTE DE HORA LOCAL DE COLOMBIA ---
+                colombia_tz = pytz.timezone('America/Bogota')
+                now_colombia = datetime.now(colombia_tz)
+                timestamp = now_colombia.strftime("%Y-%m-%d %H:%M:%S")
+                form_data['timestamp'] = timestamp # Se añade al dict para el PDF
+
                 entity_id_for_doc = form_data.get('nit', form_data.get('cedula_natural'))
-                doc_id = f"FER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{entity_id_for_doc}"
+                doc_id = f"FER-{now_colombia.strftime('%Y%m%d%H%M%S')}-{entity_id_for_doc}"
                 pdf_file_path = None
                 try:
                     pdf_gen = PDFGeneratorPlatypus(form_data)
@@ -288,7 +292,6 @@ elif st.session_state.verification_code_sent:
                         else:
                             log_row = [timestamp, doc_id, form_data['nombre_natural'], form_data['cedula_natural'], form_data['nombre_natural'], form_data['correo'], "", form_data['telefono'], "Persona Natural", "Verificado y Enviado", st.session_state.generated_code]
                         worksheet.append_row(log_row, value_input_option='USER_ENTERED')
-                        st.info("Registro guardado en Google Sheets exitosamente.")
                     except Exception as sheet_error:
                         st.error("❌ ¡ERROR CRÍTICO AL GUARDAR EN GOOGLE SHEETS!")
                         st.warning("Su formulario FUE PROCESADO, pero NO PUDO SER REGISTRADO en nuestra base de datos. Por favor, contacte a soporte.")
@@ -296,7 +299,7 @@ elif st.session_state.verification_code_sent:
                         st.error(f"Detalle técnico: {sheet_error}")
 
                     file_name = f"Autorizacion_{st.session_state.final_razon_social.replace(' ', '_')}_{entity_id_for_doc}.pdf"
-                    email_body = f"<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos, validado con el código de seguridad.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha:</b> {timestamp}</p><p>Agradecemos su confianza.</p>"
+                    email_body = f"<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos, validado con el código de seguridad.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha y Hora (Colombia):</b> {timestamp}</p><p>Agradecemos su confianza.</p>"
                     send_email(form_data['correo'], f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
                     
                     media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
@@ -316,7 +319,6 @@ elif st.session_state.verification_code_sent:
         st.session_state.update(verification_code_sent=False, form_data_cache={}, generated_code="")
         st.rerun()
 
-# 3. Pantalla de Términos y Condiciones
 elif not st.session_state.terms_accepted:
     st.header("📜 Términos, Condiciones y Autorizaciones")
     with st.expander("Haga clic aquí para leer los Términos Completos"):
@@ -327,7 +329,6 @@ elif not st.session_state.terms_accepted:
     if st.button("He leído y acepto los términos para continuar", on_click=lambda: st.session_state.update(terms_accepted=True), use_container_width=True):
         st.rerun()
 
-# 4. Pantalla de Selección de Tipo de Cliente
 elif st.session_state.client_type is None:
     st.header("👤 Selección de Tipo de Cliente")
     st.markdown("Por favor, seleccione el tipo de vinculación que desea realizar.")
@@ -338,7 +339,6 @@ elif st.session_state.client_type is None:
         st.button("Soy Persona Natural", on_click=lambda: st.session_state.update(client_type='natural'), use_container_width=True)
     st.button("‹ Volver a Términos y Condiciones", on_click=reset_to_terms)
 
-# 5. Formularios de Datos
 else:
     form_data_to_process = None
     if st.session_state.client_type == 'juridica':
