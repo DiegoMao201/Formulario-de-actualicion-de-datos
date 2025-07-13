@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 12.1 (Rediseño profesional, layout institucional, tabla gerencial, PDF agradable)
+# Versión 13.0 (Rediseño con selección de tipo de persona, formularios dinámicos y PDF condicional)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -104,7 +104,6 @@ class PDFGeneratorPlatypus:
         self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=16, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
         self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
         self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=12, spaceAfter=8)
-        self.style_blue_title = ParagraphStyle(name='BlueTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor(FERREINOX_DARK_BLUE), alignment=TA_LEFT, spaceAfter=6)
         self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=TA_LEFT)
         self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=14)
 
@@ -153,93 +152,7 @@ class PDFGeneratorPlatypus:
         footer_table.drawOn(canvas, doc.leftMargin, h - 10)
         canvas.restoreState()
 
-    def generate(self):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-            pdf_path = temp_pdf.name
-
-        doc = BaseDocTemplate(
-            pdf_path, pagesize=letter,
-            leftMargin=0.6*inch, rightMargin=0.6*inch, topMargin=1.1*inch, bottomMargin=0.6*inch
-        )
-        main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
-        template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
-        doc.addPageTemplates([template])
-
-        self.story.append(Spacer(1, 0.2*inch))
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
-        
-        datos = [
-            [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body),
-             Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
-            [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
-             Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-            [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body),
-             Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
-            [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body),
-             Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
-            [Paragraph('Correo para Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), '', '']
-        ]
-        table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
-        table_basicos.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('SPAN', (1,-1), (3,-1)),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
-        self.story.append(table_basicos)
-        self.story.append(Spacer(1, 0.15*inch))
-
-        self.story.append(Paragraph("Información de Contactos", self.style_blue_title))
-        contactos_tabla = [
-            [Paragraph('Contacto de Compras', self.style_table_header), Paragraph('Contacto de Pagos / Cartera', self.style_table_header)],
-            [Paragraph(f"<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Celular:</b> {self.data.get('compras_celular', '')}", self.style_body),
-             Paragraph(f"<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Celular:</b> {self.data.get('pagos_celular', '')}", self.style_body)]
-        ]
-        contactos_table = Table(contactos_tabla, colWidths=[3.6*inch, 3.6*inch], rowHeights=[0.3*inch, 0.6*inch])
-        contactos_table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ]))
-        self.story.append(contactos_table)
-        self.story.append(Spacer(1, 0.15*inch))
-
-        self.story.append(Paragraph("Información Logística", self.style_blue_title))
-        logistica_tabla = [
-            [Paragraph('Lugares de entrega autorizados:', self.style_table_header), Paragraph(self.data.get('lugares_entrega', ''), self.style_body)],
-            [Paragraph('Requisitos para la entrega de mercancía:', self.style_table_header), Paragraph(self.data.get('requisitos_entrega', ''), self.style_body)]
-        ]
-        table_logistica = Table(logistica_tabla, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
-        table_logistica.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ]))
-        self.story.append(table_logistica)
-        
-        # Force a page break to distribute content
-        self.story.append(FrameBreak())
-        self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
-        self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
-        self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
-        self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
-        self.story.append(Spacer(1, 0.3*inch))
-
+    def _add_signature_section(self):
         self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title))
         firma_path = None
         try:
@@ -255,10 +168,19 @@ class PDFGeneratorPlatypus:
                 firma_img.save(firma_path, format="PNG")
 
             firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
-            firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
-                <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
+            
+            # Define signature text based on client type
+            if self.data.get('client_type') == 'juridica':
+                 nombre_firmante = self.data.get('rep_legal', '')
+                 id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
+            else: # Persona Natural
+                 nombre_firmante = self.data.get('nombre_natural', '')
+                 id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
+
+            firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
+                <b>Identificación:</b> {id_firmante}<br/>
                 <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v12.1"""
+                <b>Consentimiento Vía:</b> Portal Web v13.0"""
             
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([
@@ -266,10 +188,93 @@ class PDFGeneratorPlatypus:
                 ('LEFTPADDING', (1,0), (1,0), 10),
             ]))
             self.story.append(table_firma)
+            return firma_path
         except Exception as e:
             self.story.append(Paragraph("Error al generar la imagen de la firma: " + str(e), self.style_body))
-        finally:
+            return None
+
+    def generate(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            pdf_path = temp_pdf.name
+
+        doc = BaseDocTemplate(
+            pdf_path, pagesize=letter,
+            leftMargin=0.6*inch, rightMargin=0.6*inch, topMargin=1.1*inch, bottomMargin=0.6*inch
+        )
+        main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
+        template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
+        doc.addPageTemplates([template])
+
+        self.story.append(Spacer(1, 0.2*inch))
+        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
+        
+        # --- CONDITIONAL PDF CONTENT ---
+        if self.data.get('client_type') == 'juridica':
+            datos = [
+                [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body),
+                 Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+                [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
+                 Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+                [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body),
+                 Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+                [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body),
+                 Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
+                [Paragraph('Correo para Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), '', '']
+            ]
+            table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
+            table_basicos.setStyle(TableStyle([
+                ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+                ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+                ('SPAN', (1,-1), (3,-1)),
+                ('LEFTPADDING', (0,0), (-1,-1), 6),
+                ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ]))
+            self.story.append(table_basicos)
+            rep_legal_name = self.data['rep_legal']
+            entity_name = self.data['razon_social']
+            entity_id = self.data['nit']
+            entity_email = self.data['correo']
+
+        else: # Persona Natural
+            datos = [
+                [Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)],
+                [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)],
+                [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+                [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+                [Paragraph('Correo Electrónico:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)],
+            ]
+            table_basicos = Table(datos, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
+            table_basicos.setStyle(TableStyle([
+                ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+                ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6),
+                ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ]))
+            self.story.append(table_basicos)
+            rep_legal_name = self.data['nombre_natural']
+            entity_name = self.data['nombre_natural'] # For natural person, they represent themselves
+            entity_id = self.data['cedula_natural']
+            entity_email = self.data['correo']
+
+        self.story.append(FrameBreak())
+        self.story.append(Spacer(1, 0.2*inch))
+
+        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
+        self.story.append(Paragraph(get_texto_habeas_data(rep_legal_name, entity_name, entity_id, entity_email), self.style_body))
+        self.story.append(Spacer(1, 0.2*inch))
+
+        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
+        self.story.append(Paragraph(get_texto_tratamiento_datos(rep_legal_name, entity_name, entity_id), self.style_body))
+        self.story.append(Spacer(1, 0.3*inch))
+
+        firma_path = self._add_signature_section()
+        
+        try:
             doc.build(self.story)
+        finally:
             if firma_path and os.path.exists(firma_path):
                 os.unlink(firma_path)
         return pdf_path
@@ -327,23 +332,43 @@ except Exception:
 
 st.title("Portal de Vinculación y Autorización de Datos")
 st.markdown("---")
+
+# Initialize session state variables
 if 'terms_accepted' not in st.session_state:
     st.session_state.terms_accepted = False
+if 'client_type' not in st.session_state:
+    st.session_state.client_type = None
+
 def accept_terms():
     st.session_state.terms_accepted = True
+
+def set_client_type(type):
+    st.session_state.client_type = type
 
 if not st.session_state.terms_accepted:
     st.header("📜 Términos, Condiciones y Autorizaciones")
     with st.expander("Haga clic aquí para leer los Términos Completos"):
         st.subheader("Autorización para Tratamiento de Datos Personales")
-        st.markdown(get_texto_tratamiento_datos("[Su Nombre]", "[Su Empresa]", "[Su NIT]"), unsafe_allow_html=True)
+        st.markdown(get_texto_tratamiento_datos("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]"), unsafe_allow_html=True)
         st.subheader("Autorización para Consulta en Centrales de Riesgo (Habeas Data)")
-        st.markdown(get_texto_habeas_data("[Su Nombre]", "[Su Empresa]", "[Su NIT]", "[Su Correo]"), unsafe_allow_html=True)
+        st.markdown(get_texto_habeas_data("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]", "[Su Correo]"), unsafe_allow_html=True)
     st.button("He leído y acepto los términos para continuar", on_click=accept_terms, use_container_width=True)
-else:
-    with st.form(key="formulario_principal"):
-        st.header("👤 Formulario de Vinculación")
+
+elif st.session_state.client_type is None:
+    st.header("👤 Selección de Tipo de Cliente")
+    st.markdown("Por favor, seleccione el tipo de vinculación que desea realizar.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.button("Soy Persona Jurídica (Empresa)", on_click=set_client_type, args=('juridica',), use_container_width=True)
+    with col2:
+        st.button("Soy Persona Natural", on_click=set_client_type, args=('natural',), use_container_width=True)
+
+# --- FORMULARIO PARA PERSONA JURÍDICA ---
+elif st.session_state.client_type == 'juridica':
+    with st.form(key="form_juridica"):
+        st.header("📝 Formulario de Vinculación: Persona Jurídica")
         st.markdown("Por favor, complete todos los campos a continuación.")
+        
         st.subheader("Datos de la Empresa")
         col1, col2 = st.columns(2)
         with col1:
@@ -356,6 +381,7 @@ else:
             ciudad = st.text_input("Ciudad*", placeholder="Pereira")
             correo = st.text_input("Correo para Notificaciones y Facturas*", placeholder="facturacion@empresa.com")
             celular = st.text_input("Celular de Contacto General", placeholder="3101234567")
+        
         st.subheader("Datos del Representante Legal")
         col3, col4, col5 = st.columns(3)
         with col3:
@@ -363,33 +389,19 @@ else:
         with col4:
             cedula_rep_legal = st.text_input("Número de Identificación*", placeholder="1020304050")
         with col5:
-            tipo_id = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"])
-            lugar_exp_id = st.text_input("Ciudad de Expedición del ID*", placeholder="Pereira")
-        st.subheader("Información de Contactos")
-        col6, col7 = st.columns(2)
-        with col6:
-            st.markdown("#### Contacto de Compras")
-            compras_nombre = st.text_input("Nombre (Compras)", key="compras_nombre")
-            compras_correo = st.text_input("Correo (Compras)", key="compras_correo")
-            compras_celular = st.text_input("Celular (Compras)", key="compras_celular")
-        with col7:
-            st.markdown("#### Contacto de Pagos / Cartera")
-            pagos_nombre = st.text_input("Nombre (Pagos)", key="pagos_nombre")
-            pagos_correo = st.text_input("Correo (Pagos)", key="pagos_correo")
-            pagos_celular = st.text_input("Celular (Pagos)", key="pagos_celular")
-        st.subheader("Información Logística")
-        lugares_entrega = st.text_area("Lugares de entrega autorizados (direcciones)", placeholder="Sede Principal: Cr 13 #19-26, Pereira\nBodega: Km 5 Vía Cerritos, Bodega 4")
-        requisitos_entrega = st.text_area("Requisitos para la entrega de mercancía", placeholder="Dejar en portería a nombre de Juan Valdés. Requiere sello de recibido.")
+            tipo_id_rep = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"], key="tipo_id_rep")
+            lugar_exp_id_rep = st.text_input("Ciudad de Expedición del ID*", placeholder="Pereira", key="lugar_exp_rep")
+
         st.subheader("✍️ Firma Digital de Aceptación")
-        st.caption("El Representante Legal debe firmar en el siguiente recuadro para validar toda la información y autorizaciones.")
+        st.caption("El Representante Legal debe firmar en el siguiente recuadro para validar la información y las autorizaciones.")
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
-            background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma"
+            background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma_juridica"
         )
         submit_button = st.form_submit_button(label="✅ Finalizar y Enviar Formulario Firmado", use_container_width=True)
 
     if submit_button:
-        campos_obligatorios = [razon_social, nit, direccion, ciudad, correo, rep_legal, cedula_rep_legal, lugar_exp_id, nombre_comercial]
+        campos_obligatorios = [razon_social, nit, direccion, ciudad, correo, rep_legal, cedula_rep_legal, lugar_exp_id_rep, nombre_comercial]
         if not all(campos_obligatorios):
             st.warning("⚠️ Por favor, complete todos los campos marcados con *.")
         elif canvas_result.image_data is None:
@@ -402,21 +414,22 @@ else:
                 try:
                     firma_img_pil = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
                     form_data = {
+                        'client_type': 'juridica',
                         'razon_social': razon_social, 'nombre_comercial': nombre_comercial, 'nit': nit,
                         'direccion': direccion, 'ciudad': ciudad, 'telefono': telefono, 'celular': celular,
                         'correo': correo, 'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal,
-                        'tipo_id': tipo_id, 'lugar_exp_id': lugar_exp_id, 'compras_nombre': compras_nombre,
-                        'compras_correo': compras_correo, 'compras_celular': compras_celular,
-                        'pagos_nombre': pagos_nombre, 'pagos_correo': pagos_correo, 'pagos_celular': pagos_celular,
-                        'lugares_entrega': lugares_entrega, 'requisitos_entrega': requisitos_entrega,
+                        'tipo_id': tipo_id_rep, 'lugar_exp_id': lugar_exp_id_rep,
                         'firma_img_pil': firma_img_pil
                     }
+                    
                     st.write("Paso 1/4: Generando documento PDF institucional...")
                     pdf_gen = PDFGeneratorPlatypus(form_data)
                     pdf_file_path = pdf_gen.generate()
+                    
                     st.write("Paso 2/4: Guardando registro en Log de Trazabilidad...")
-                    log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, ciudad, telefono, celular, compras_nombre, compras_correo, pagos_nombre, pagos_correo, "Enviado y Notificado"]
+                    log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, ciudad, f"{telefono} / {celular}", "Persona Jurídica", "Enviado y Notificado"]
                     worksheet.append_row(log_row, value_input_option='USER_ENTERED')
+                    
                     st.write("Paso 3/4: Enviando correo de confirmación al cliente...")
                     file_name = f"Actualizacion_Datos_{razon_social.replace(' ', '_')}_{nit}.pdf"
                     email_body = f"""
@@ -430,21 +443,111 @@ else:
                     <p><i>Este es un mensaje automático, por favor no responda a este correo.</i></p>
                     """
                     send_email_with_attachment(correo, f"Confirmación de Vinculación - {razon_social}", email_body, pdf_file_path, file_name)
+                    
                     st.write("Paso 4/4: Archivando PDF en el repositorio digital...")
                     file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
                     media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
-                    file = drive_service.files().create(
-                        body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True
-                    ).execute()
+                    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
+                    
                     st.balloons()
                     st.success(f"**¡Proceso Finalizado Exitosamente!**")
                     st.markdown(f"El formulario para **{razon_social}** ha sido generado, archivado y enviado a su correo electrónico.")
                     st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({file.get('webViewLink')})")
+
                 except Exception as e:
                     st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Por favor, intente de nuevo.")
                     st.error(f"Detalle técnico: {e}")
                     try:
                         worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
+                    except Exception as log_e:
+                        st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
+                finally:
+                    if pdf_file_path and os.path.exists(pdf_file_path):
+                        os.unlink(pdf_file_path)
+
+# --- FORMULARIO PARA PERSONA NATURAL ---
+elif st.session_state.client_type == 'natural':
+    with st.form(key="form_natural"):
+        st.header("📝 Formulario de Vinculación: Persona Natural")
+        st.markdown("Por favor, complete todos los campos a continuación.")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            nombre_natural = st.text_input("Nombre Completo*", placeholder="Ana María Pérez")
+            cedula_natural = st.text_input("Número de Identificación*", placeholder="1020304050")
+            direccion_natural = st.text_input("Dirección de Residencia*", placeholder="Cr 13 #19-26")
+        with col2:
+            correo_natural = st.text_input("Correo Electrónico*", placeholder="ana.perez@email.com")
+            telefono_natural = st.text_input("Teléfono / Celular*", placeholder="3101234567")
+            tipo_id_nat = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"], key="tipo_id_nat")
+            lugar_exp_id_nat = st.text_input("Ciudad de Expedición del ID*", placeholder="Pereira", key="lugar_exp_nat")
+
+        st.subheader("✍️ Firma Digital de Aceptación")
+        st.caption("Firme en el siguiente recuadro para validar su información y autorizaciones.")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
+            background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma_natural"
+        )
+        submit_button = st.form_submit_button(label="✅ Finalizar y Enviar Formulario Firmado", use_container_width=True)
+
+    if submit_button:
+        campos_obligatorios = [nombre_natural, cedula_natural, direccion_natural, correo_natural, telefono_natural, lugar_exp_id_nat]
+        if not all(campos_obligatorios):
+            st.warning("⚠️ Por favor, complete todos los campos marcados con *.")
+        elif canvas_result.image_data is None:
+            st.warning("🖋️ Su firma es indispensable para validar el documento.")
+        else:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            doc_id = f"FER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{cedula_natural}"
+            with st.spinner("Procesando su solicitud... Este proceso puede tardar un momento. ⏳"):
+                pdf_file_path = None
+                try:
+                    firma_img_pil = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                    form_data = {
+                        'client_type': 'natural',
+                        'nombre_natural': nombre_natural, 'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat,
+                        'lugar_exp_id': lugar_exp_id_nat, 'direccion': direccion_natural,
+                        'correo': correo_natural, 'telefono': telefono_natural,
+                        'firma_img_pil': firma_img_pil
+                    }
+
+                    st.write("Paso 1/4: Generando documento PDF institucional...")
+                    pdf_gen = PDFGeneratorPlatypus(form_data)
+                    pdf_file_path = pdf_gen.generate()
+
+                    st.write("Paso 2/4: Guardando registro en Log de Trazabilidad...")
+                    log_row = [timestamp, doc_id, nombre_natural, cedula_natural, nombre_natural, correo_natural, "", telefono_natural, "Persona Natural", "Enviado y Notificado"]
+                    worksheet.append_row(log_row, value_input_option='USER_ENTERED')
+
+                    st.write("Paso 3/4: Enviando correo de confirmación...")
+                    file_name = f"Autorizacion_Datos_{nombre_natural.replace(' ', '_')}_{cedula_natural}.pdf"
+                    email_body = f"""
+                    <h3>Confirmación de Autorización de Datos - Ferreinox S.A.S. BIC</h3>
+                    <p>Estimado(a) <b>{nombre_natural}</b>,</p>
+                    <p>Reciba un cordial saludo.</p>
+                    <p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de tratamiento de datos.</p>
+                    <p>Adjunto a este mensaje encontrará el documento PDF con toda la información registrada y la constancia de su consentimiento.</p>
+                    <p><b>ID del Documento:</b> {doc_id}<br><b>Fecha de registro:</b> {timestamp}</p>
+                    <p>Agradecemos su confianza en Ferreinox S.A.S. BIC.</p><br>
+                    <p><i>Este es un mensaje automático, por favor no responda a este correo.</i></p>
+                    """
+                    send_email_with_attachment(correo_natural, f"Confirmación de Vinculación - {nombre_natural}", email_body, pdf_file_path, file_name)
+
+                    st.write("Paso 4/4: Archivando PDF en el repositorio digital...")
+                    file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
+                    media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
+                    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
+
+                    st.balloons()
+                    st.success(f"**¡Proceso Finalizado Exitosamente!**")
+                    st.markdown(f"El formulario para **{nombre_natural}** ha sido generado, archivado y enviado a su correo electrónico.")
+                    st.markdown(f"Puede previsualizar el documento final aquí: [**Ver PDF Generado**]({file.get('webViewLink')})")
+                
+                except Exception as e:
+                    st.error(f"❌ ¡Ha ocurrido un error inesperado durante el envío! Por favor, intente de nuevo.")
+                    st.error(f"Detalle técnico: {e}")
+                    try:
+                        worksheet.append_row([timestamp, doc_id, nombre_natural, cedula_natural, nombre_natural, correo_natural, f"Error: {e}"], value_input_option='USER_ENTERED')
                     except Exception as log_e:
                         st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
                 finally:
