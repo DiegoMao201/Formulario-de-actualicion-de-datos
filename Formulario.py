@@ -2,7 +2,6 @@
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
 # Versión 6.0 (Final Unificada): Trazabilidad en Sheets, Corrección de Errores y Flujo Completo
-# Creado: 12 de Julio de 2025
 # =========================================================================================
 
 # --- 1. IMPORTACIÓN DE LIBRERÍAS ---
@@ -11,7 +10,7 @@ from streamlit_drawable_canvas import st_canvas
 import io
 from PIL import Image
 from datetime import datetime
-import gspread  # Para Google Sheets
+import gspread
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -24,8 +23,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 # --- 2. TEXTOS LEGALES (CONSTANTES) ---
-# Centralizar los textos aquí facilita su mantenimiento.
-
 TEXTO_TRATAMIENTO_DATOS = """
 De conformidad con la Política de Tratamiento de Datos Personales de FERREINOX S.A.S. BIC (NIT. 800224617-8), 
 la cual está disponible en sus instalaciones y en el sitio web www.ferreinox.co, autorizo a la empresa para:
@@ -76,7 +73,6 @@ Declaro que he leído, comprendido y aceptado en su totalidad el contenido de es
 En consecuencia, procedo a diligenciar mi información.
 """
 
-
 # --- 3. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
 
@@ -85,15 +81,11 @@ st.markdown("""
 <style>
     .main { background-color: #F0F2F6; }
     .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    h1, h2, h3 { color: #0D47A1; } /* Azul oscuro corporativo */
-    .stButton>button {
-        border-radius: 8px; border: 2px solid #0D47A1; background-color: #1565C0;
-        color: white; font-weight: bold; transition: all 0.3s;
-    }
+    h1, h2, h3 { color: #0D47A1; }
+    .stButton>button { border-radius: 8px; border: 2px solid #0D47A1; background-color: #1565C0; color: white; font-weight: bold; }
     .stButton>button:hover { background-color: #0D47A1; }
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- 5. CLASE GENERADORA DE PDF ---
 class PDFGenerator:
@@ -119,7 +111,6 @@ class PDFGenerator:
         self.c.restoreState()
 
     def _draw_paragraph(self, x, y, width, text):
-        # Limpieza simple de HTML para reportlab
         text_for_pdf = text.replace('<ul>','').replace('</ul>','').replace('<li>','<para>• ').replace('</li>','</para>').replace('<b>','<b>').replace('</b>','</b>')
         p = Paragraph(text_for_pdf, self.paragraph_style)
         p.wrapOn(self.c, width, self.height)
@@ -131,7 +122,6 @@ class PDFGenerator:
         self._draw_header("CONSENTIMIENTO Y AUTORIZACIÓN DE DATOS")
         y_pos = self.height - 150
 
-        # Sección 1: Tratamiento de Datos
         self.c.setFont("Helvetica-Bold", 12)
         self.c.setFillColor(self.color_primary)
         self.c.drawString(50, y_pos, "1. Autorización para Tratamiento de Datos Personales")
@@ -139,7 +129,6 @@ class PDFGenerator:
         h = self._draw_paragraph(50, y_pos, 500, self.data['texto_tratamiento'])
         y_pos -= (h + 30)
 
-        # Sección 2: Habeas Data
         self.c.setFont("Helvetica-Bold", 12)
         self.c.setFillColor(self.color_primary)
         self.c.drawString(50, y_pos, "2. Autorización para Consulta y Reporte en Centrales de Riesgo")
@@ -147,7 +136,6 @@ class PDFGenerator:
         h = self._draw_paragraph(50, y_pos, 500, self.data['texto_habeas'])
         y_pos -= (h + 40)
         
-        # Sección Firma y Trazabilidad
         self.c.setFont("Helvetica-Bold", 11)
         self.c.setFillColor(self.color_secondary)
         self.c.drawString(50, y_pos, "CONSTANCIA DE ACEPTACIÓN Y FIRMA")
@@ -161,7 +149,6 @@ class PDFGenerator:
         self.c.setFont("Helvetica", 9)
         self.c.drawString(50, y_pos - 90, self.data['rep_legal'])
         
-        # Tabla de Trazabilidad
         data_trazabilidad = [
             ['Concepto', 'Registro'],
             ['ID Único del Documento:', self.data.get('doc_id', '')],
@@ -169,7 +156,6 @@ class PDFGenerator:
             ['Método de Consentimiento:', 'Aceptación en portal web tras visualización de términos.'],
             ['Correo Electrónico Asociado:', self.data.get('correo', '')]
         ]
-        
         tabla = Table(data_trazabilidad, colWidths=[1.8*inch, 2.5*inch], rowHeights=0.3*inch)
         tabla.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (1, 0), self.color_primary),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
@@ -185,10 +171,7 @@ class PDFGenerator:
 # --- 6. CONFIGURACIÓN DE CONEXIONES Y VARIABLES ---
 try:
     creds_info = st.secrets["gcp_service_account"]
-    scopes = [
-        'https://www.googleapis.com/auth/drive',
-        'https://www.googleapis.com/auth/spreadsheets'
-    ]
+    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
     
     drive_service = build('drive', 'v3', credentials=creds)
@@ -201,7 +184,6 @@ try:
 except Exception as e:
     st.error(f"🚨 Error de Configuración en las APIs de Google. Verifica los permisos y secretos. Detalle: {e}")
     st.stop()
-
 
 # --- 7. INTERFAZ DE USUARIO CON STREAMLIT ---
 if 'terms_viewed' not in st.session_state:
