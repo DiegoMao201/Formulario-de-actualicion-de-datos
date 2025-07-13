@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =========================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 8.3 (Autenticación por Secretos Individuales)
+# Versión 8.4 (Corrección en Generación de PDF)
 # Fecha: 12 de Julio de 2025
 # =========================================================================================
 
@@ -117,7 +117,15 @@ class PDFGenerator:
         self.c.restoreState()
 
     def _draw_paragraph(self, x, y, width, text):
-        text_for_pdf = text.replace('<ul>','').replace('</ul>','').replace('<li>','<para>• ').replace('</li>','</para>').replace('<b>','<b>').replace('</b>','</b>')
+        # CORRECCIÓN: Se reemplaza el método de conversión de HTML a un formato más robusto
+        # para evitar errores de formato en ReportLab con las etiquetas de lista.
+        # Se usan saltos de línea <br/> en lugar de la etiqueta <para> que causaba el error.
+        text_for_pdf = text.replace('<ul>','').replace('</ul>','')
+        text_for_pdf = text_for_pdf.replace('<li>','<br/>  •  ')
+        text_for_pdf = text_for_pdf.replace('</li>','')
+        text_for_pdf = text_for_pdf.replace('\n', ' ')
+        text_for_pdf = ' '.join(text_for_pdf.split())
+
         p = Paragraph(text_for_pdf, self.paragraph_style)
         p.wrapOn(self.c, width, self.height)
         p_height = p.height
@@ -367,4 +375,3 @@ if submit_button:
                     worksheet.append_row([timestamp, doc_id, razon_social, nit, rep_legal, correo, f"Error: {e}"], value_input_option='USER_ENTERED')
                 except Exception as log_e:
                     st.error(f"No se pudo registrar el error en Google Sheets. Detalle: {log_e}")
-
