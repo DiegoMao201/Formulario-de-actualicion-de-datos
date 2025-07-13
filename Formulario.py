@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 11.0 (Rediseño Profesional de PDF: Encabezado institucional, doble columna, márgenes optimizados)
+# Versión 11.1 (Rediseño profesional con doble columna, márgenes optimizados y corrección de Flowable Table)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -14,7 +14,7 @@ import tempfile
 import os
 import numpy as np
 
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, FrameBreak, KeepTogether
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, FrameBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
@@ -87,7 +87,7 @@ def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
         Autorización, y acepto la finalidad en ella descrita y las consecuencias que se derivan de ella.
     """
 
-# --- PDF GENERATOR: REDISEÑO PROFESIONAL ---
+# --- PDF GENERATOR: DOBLE COLUMNA CON TABLA SIMPLE ---
 class PDFGeneratorPlatypus:
     def __init__(self, data):
         self.data = data
@@ -154,47 +154,39 @@ class PDFGeneratorPlatypus:
             pdf_path, pagesize=letter,
             leftMargin=0.5*inch, rightMargin=0.5*inch, topMargin=0.65*inch, bottomMargin=0.55*inch
         )
-
-        # Doble columna principal pero con frame grande para bloques
         main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
         template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
         doc.addPageTemplates([template])
 
-        # --- PRIMER BLOQUE: Encabezado institucional, datos básicos en 2 columnas ---
         self.story.append(Spacer(1, 0.4*inch))
 
-        # Datos en dos columnas (más compacto)
-        datos1 = [
-            [Paragraph('<b>Razón Social:</b>', self.style_body), Paragraph(self.data.get('razon_social', ''), self.style_body)],
-            [Paragraph('<b>Nombre Comercial:</b>', self.style_body), Paragraph(self.data.get('nombre_comercial', ''), self.style_body)],
-            [Paragraph('<b>NIT:</b>', self.style_body), Paragraph(self.data.get('nit', ''), self.style_body)],
-            [Paragraph('<b>Representante Legal:</b>', self.style_body), Paragraph(self.data.get('rep_legal', ''), self.style_body)]
+        # Datos básicos en doble columna: tabla compacta de 2 columnas y 9 filas
+        datos = [
+            [Paragraph('<b>Razón Social:</b>', self.style_body), Paragraph(self.data.get('razon_social', ''), self.style_body),
+             Paragraph('<b>Dirección:</b>', self.style_body), Paragraph(self.data.get('direccion', ''), self.style_body)],
+            [Paragraph('<b>Nombre Comercial:</b>', self.style_body), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
+             Paragraph('<b>Ciudad:</b>', self.style_body), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+            [Paragraph('<b>NIT:</b>', self.style_body), Paragraph(self.data.get('nit', ''), self.style_body),
+             Paragraph('<b>Teléfono:</b>', self.style_body), Paragraph(self.data.get('telefono', ''), self.style_body)],
+            [Paragraph('<b>Representante Legal:</b>', self.style_body), Paragraph(self.data.get('rep_legal', ''), self.style_body),
+             Paragraph('<b>Celular:</b>', self.style_body), Paragraph(self.data.get('celular', ''), self.style_body)],
+            [Paragraph('<b>Correo para Notificaciones:</b>', self.style_body), Paragraph(self.data.get('correo', ''), self.style_body),
+             '', '']
         ]
-        datos2 = [
-            [Paragraph('<b>Dirección:</b>', self.style_body), Paragraph(self.data.get('direccion', ''), self.style_body)],
-            [Paragraph('<b>Ciudad:</b>', self.style_body), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-            [Paragraph('<b>Teléfono:</b>', self.style_body), Paragraph(self.data.get('telefono', ''), self.style_body)],
-            [Paragraph('<b>Celular:</b>', self.style_body), Paragraph(self.data.get('celular', ''), self.style_body)],
-            [Paragraph('<b>Correo para Notificaciones:</b>', self.style_body), Paragraph(self.data.get('correo', ''), self.style_body)]
-        ]
-        # Tabla doble columna
-        data_table = [
-            [KeepTogether(Table(datos1, colWidths=[1.7*inch, 1.9*inch])), KeepTogether(Table(datos2, colWidths=[1.7*inch, 1.9*inch]))]
-        ]
-        table_layout = Table(data_table, colWidths=[3.6*inch, 3.6*inch])
-        table_layout.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch])
+        table_basicos.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E3F2FD')),
             ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8)
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4)
         ]))
-
         self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_blue))
-        self.story.append(table_layout)
-        self.story.append(Spacer(1, 0.08*inch))
+        self.story.append(table_basicos)
+        self.story.append(Spacer(1, 0.05*inch))
 
-        # --- Contactos ---
         self.story.append(Paragraph("Información de Contactos", self.style_blue))
         contactos_tabla = [
             [Paragraph('<b>Compras:</b>', self.style_body), Paragraph('<b>Pagos:</b>', self.style_body)],
@@ -213,9 +205,8 @@ class PDFGeneratorPlatypus:
             ('BOTTOMPADDING', (0,0), (-1,-1), 6)
         ]))
         self.story.append(contactos_table)
-        self.story.append(Spacer(1, 0.08*inch))
+        self.story.append(Spacer(1, 0.05*inch))
 
-        # --- Logística ---
         self.story.append(Paragraph("Información Logística", self.style_blue))
         logistica_tabla = [
             [Paragraph('<b>Lugares de entrega autorizados:</b>', self.style_body), Paragraph(self.data.get('lugares_entrega', ''), self.style_body)],
@@ -230,18 +221,16 @@ class PDFGeneratorPlatypus:
             ('BOTTOMPADDING', (0,0), (-1,-1), 4)
         ]))
         self.story.append(table_logistica)
-        self.story.append(Spacer(1, 0.1*inch))
+        self.story.append(Spacer(1, 0.07*inch))
 
-        # --- AUTORIZACIONES LEGALES ---
         self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_blue))
         self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
-        self.story.append(Spacer(1, 0.07*inch))
+        self.story.append(Spacer(1, 0.05*inch))
 
         self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_blue))
         self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
-        self.story.append(Spacer(1, 0.09*inch))
+        self.story.append(Spacer(1, 0.07*inch))
 
-        # --- FIRMA DIGITAL ---
         self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_blue))
         firma_path = None
         temp_img = None
