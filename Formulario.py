@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 12.0 (Rediseño profesional, layout institucional, tabla gerencial, PDF agradable)
+# Versión 12.1 (Rediseño profesional, layout institucional, tabla gerencial, PDF agradable)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -100,41 +100,31 @@ class PDFGeneratorPlatypus:
         self.story = []
 
         styles = getSampleStyleSheet()
-        # Increased leading for better readability and spacing between lines
-        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=10, alignment=TA_JUSTIFY, leading=16)
-        self.style_subtitle = ParagraphStyle(name='SubTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=12, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_ACCENT_BLUE), spaceAfter=10)
-        # Larger font for main title and institutional color
-        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=18, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
-        # Increased font size for footer and institutional yellow accent
-        self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=10, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
-        # Institutional blue for section titles
+        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
+        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=16, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
+        self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
         self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=12, spaceAfter=8)
-        self.style_blue = ParagraphStyle(name='Blue', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor(FERREINOX_ACCENT_BLUE), alignment=TA_LEFT, spaceAfter=6) # Used for sub-sections
-        self.style_bold = ParagraphStyle(name='Bold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=10, alignment=TA_LEFT)
-        self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=10, alignment=TA_LEFT, leading=14)
+        self.style_blue_title = ParagraphStyle(name='BlueTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor(FERREINOX_DARK_BLUE), alignment=TA_LEFT, spaceAfter=6)
+        self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=TA_LEFT)
+        self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=14)
 
     def _on_page(self, canvas, doc):
         canvas.saveState()
-
-        # --- Encabezado centrado y elegante ---
         try:
-            # Adjust logo size for prominence
-            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.8*inch, height=0.9*inch, hAlign='LEFT')
+            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.5*inch, height=0.8*inch, hAlign='LEFT')
         except Exception:
             logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body)
 
-        # Encabezado institucional, logo a la izquierda, título a la derecha, both well-aligned
-        # Reduced vertical padding in TableStyle for header
         header_content = [
             [
                 logo,
                 Paragraph(
-                    f"<font color='{FERREINOX_DARK_BLUE}'><b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS DE CLIENTE</b></font>",
+                    "<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS DE CLIENTE</b>",
                     self.style_header_title
                 )
             ]
         ]
-        header_table = Table(header_content, colWidths=[3.0*inch, 4.0*inch], hAlign='LEFT')
+        header_table = Table(header_content, colWidths=[3.0*inch, 4.2*inch], hAlign='LEFT')
         header_table.setStyle(
             TableStyle([
                 ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
@@ -146,11 +136,9 @@ class PDFGeneratorPlatypus:
             ])
         )
         w, h = header_table.wrap(doc.width, doc.topMargin)
-        # Adjusted Y-coordinate to move header higher
-        header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h + 30) # Moved up by +12 from original +18
+        header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h + 15)
         canvas.restoreState()
 
-        # Pie institucional gerencial
         canvas.saveState()
         footer_content = [
             [Paragraph(f"<b>EVOLUCIONANDO <font color='{FERREINOX_YELLOW_ACCENT}'>JUNTOS</font></b>", self.style_footer), Paragraph(f"Página {doc.page}", self.style_footer)]
@@ -162,115 +150,102 @@ class PDFGeneratorPlatypus:
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
         ]))
         w, h = footer_table.wrap(doc.width, doc.bottomMargin)
-        footer_table.drawOn(canvas, doc.leftMargin, h - 5) # Slightly lower to avoid being too close to the edge
+        footer_table.drawOn(canvas, doc.leftMargin, h - 10)
         canvas.restoreState()
 
     def generate(self):
-        # Márgenes optimizados y espacio institucional
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
             pdf_path = temp_pdf.name
 
         doc = BaseDocTemplate(
             pdf_path, pagesize=letter,
-            leftMargin=0.7*inch, rightMargin=0.7*inch, topMargin=1.2*inch, bottomMargin=0.7*inch # Adjusted margins
+            leftMargin=0.6*inch, rightMargin=0.6*inch, topMargin=1.1*inch, bottomMargin=0.6*inch
         )
         main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
         template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
         doc.addPageTemplates([template])
 
-        self.story.append(Spacer(1, 0.2*inch)) # Reduced initial spacer to allow header to move up
-
-        # --- DATOS BÁSICOS INSTITUCIONALES TABLA GERENCIAL ---
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title)) # Larger section title
-        # Adjusted colWidths for better distribution, and padding
+        self.story.append(Spacer(1, 0.2*inch))
+        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
+        
         datos = [
-            [Paragraph('<b>Razón Social:</b>', self.style_bold), Paragraph(self.data.get('razon_social', ''), self.style_body),
-             Paragraph('<b>Dirección:</b>', self.style_bold), Paragraph(self.data.get('direccion', ''), self.style_body)],
-            [Paragraph('<b>Nombre Comercial:</b>', self.style_bold), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
-             Paragraph('<b>Ciudad:</b>', self.style_bold), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-            [Paragraph('<b>NIT:</b>', self.style_bold), Paragraph(self.data.get('nit', ''), self.style_body),
-             Paragraph('<b>Teléfono:</b>', self.style_bold), Paragraph(self.data.get('telefono', ''), self.style_body)],
-            [Paragraph('<b>Representante Legal:</b>', self.style_bold), Paragraph(self.data.get('rep_legal', ''), self.style_body),
-             Paragraph('<b>Celular:</b>', self.style_bold), Paragraph(self.data.get('celular', ''), self.style_body)],
-            [Paragraph('<b>Correo para Notificaciones:</b>', self.style_bold), Paragraph(self.data.get('correo', ''), self.style_body), '', '']
+            [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body),
+             Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+            [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
+             Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+            [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body),
+             Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+            [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body),
+             Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
+            [Paragraph('Correo para Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), '', '']
         ]
-        table_basicos = Table(datos, colWidths=[1.7*inch, 2.0*inch, 1.7*inch, 2.0*inch], hAlign='LEFT') # Adjusted colWidths
+        table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
         table_basicos.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E0E0E0')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E3F2FD')),
-            ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#F7FBFF')),
-            ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#E3F2FD')),
-            ('BACKGROUND', (0,3), (-1,3), colors.HexColor('#F7FBFF')),
-            ('BACKGROUND', (0,4), (-1,4), colors.HexColor('#E3F2FD')), # Added background for the last row
-            ('LEFTPADDING', (0,0), (-1,-1), 8), # Increased padding
-            ('RIGHTPADDING', (0,0), (-1,-1), 8), # Increased padding
-            ('TOPPADDING', (0,0), (-1,-1), 5), # Increased padding
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5) # Increased padding
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+            ('SPAN', (1,-1), (3,-1)),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
         ]))
         self.story.append(table_basicos)
-        self.story.append(Spacer(1, 0.2*inch)) # More space after table
+        self.story.append(Spacer(1, 0.15*inch))
 
-        # --- CONTACTOS: Bloques compactos, institucionales y gerenciales ---
-        self.story.append(Paragraph("Información de Contactos", self.style_blue))
-        # Adjusted colWidths for better content fit and padding
+        self.story.append(Paragraph("Información de Contactos", self.style_blue_title))
         contactos_tabla = [
-            [Paragraph('<b>Compras:</b>', self.style_bold), Paragraph('<b>Pagos:</b>', self.style_bold)],
-            [
-                Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Celular:</b> {self.data.get('compras_celular', '')}""", self.style_body),
-                Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Celular:</b> {self.data.get('pagos_celular', '')}""", self.style_body)
-            ]
+            [Paragraph('Contacto de Compras', self.style_table_header), Paragraph('Contacto de Pagos / Cartera', self.style_table_header)],
+            [Paragraph(f"<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Celular:</b> {self.data.get('compras_celular', '')}", self.style_body),
+             Paragraph(f"<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Celular:</b> {self.data.get('pagos_celular', '')}", self.style_body)]
         ]
-        contactos_table = Table(contactos_tabla, colWidths=[3.3*inch, 3.3*inch]) # Remains similar, good
+        contactos_table = Table(contactos_tabla, colWidths=[3.6*inch, 3.6*inch], rowHeights=[0.3*inch, 0.6*inch])
         contactos_table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E0E0E0')),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E3F2FD')),
-            ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#F7FBFF')),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor(FERREINOX_DARK_BLUE)),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 8), # Increased padding
-            ('TOPPADDING', (0,0), (-1,-1), 7), # Increased padding
-            ('BOTTOMPADDING', (0,0), (-1,-1), 7) # Increased padding
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
         ]))
         self.story.append(contactos_table)
-        self.story.append(Spacer(1, 0.2*inch)) # More space after table
+        self.story.append(Spacer(1, 0.15*inch))
 
-        # --- LOGÍSTICA ---
-        self.story.append(Paragraph("Información Logística", self.style_blue))
-        # Adjusted colWidths for better content fit and padding
+        self.story.append(Paragraph("Información Logística", self.style_blue_title))
         logistica_tabla = [
-            [Paragraph('<b>Lugares de entrega autorizados:</b>', self.style_bold), Paragraph(self.data.get('lugares_entrega', ''), self.style_body)],
-            [Paragraph('<b>Requisitos para la entrega de mercancía:</b>', self.style_bold), Paragraph(self.data.get('requisitos_entrega', ''), self.style_body)]
+            [Paragraph('Lugares de entrega autorizados:', self.style_table_header), Paragraph(self.data.get('lugares_entrega', ''), self.style_body)],
+            [Paragraph('Requisitos para la entrega de mercancía:', self.style_table_header), Paragraph(self.data.get('requisitos_entrega', ''), self.style_body)]
         ]
-        table_logistica = Table(logistica_tabla, colWidths=[2.8*inch, 3.8*inch], hAlign='LEFT') # Adjusted colWidths
+        table_logistica = Table(logistica_tabla, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
         table_logistica.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E0E0E0')),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E3F2FD')),
-            ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#F7FBFF')),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 8), # Increased padding
-            ('TOPPADDING', (0,0), (-1,-1), 5), # Increased padding
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5) # Increased padding
+            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
         ]))
         self.story.append(table_logistica)
-        self.story.append(Spacer(1, 0.3*inch)) # More space after table, before authorizations
+        
+        # Force a page break to distribute content
+        self.story.append(FrameBreak())
+        self.story.append(Spacer(1, 0.2*inch))
 
-        # --- AUTORIZACIONES LEGALES ---
-        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title)) # Larger section title
+        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
         self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
-        self.story.append(Spacer(1, 0.2*inch)) # More space between authorizations
+        self.story.append(Spacer(1, 0.2*inch))
 
-        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title)) # Larger section title
+        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
         self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
-        self.story.append(Spacer(1, 0.3*inch)) # More space before signature section
+        self.story.append(Spacer(1, 0.3*inch))
 
-        # --- FIRMA DIGITAL ---
-        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title)) # Larger section title
+        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title))
         firma_path = None
-        temp_img = None
         try:
-            temp_img = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-            firma_path = temp_img.name
-            temp_img.close()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_img:
+                firma_path = temp_img.name
+            
             firma_img = self.data['firma_img_pil']
             if firma_img.mode == "RGBA":
                 background = Image.new("RGB", firma_img.size, (255, 255, 255))
@@ -278,23 +253,19 @@ class PDFGeneratorPlatypus:
                 background.save(firma_path, format="PNG")
             else:
                 firma_img.save(firma_path, format="PNG")
-            # Firma institucional, adjusted width/height for better proportion
-            firma_image = PlatypusImage(firma_path, width=2.5*inch, height=0.8*inch)
-            # Use style_signature_info for consistent leading and alignment
+
+            firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
             firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
                 <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
                 <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v10.5"""
-            # Adjusted colWidths to give more space to text, and padding for better layout
-            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 3.8*inch], hAlign='LEFT')
+                <b>Consentimiento Vía:</b> Portal Web v12.1"""
+            
+            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('LEFTPADDING', (0,0), (-1,-1), 7),
-                ('TOPPADDING', (0,0), (-1,-1), 8), # Increased padding
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8) # Increased padding
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('LEFTPADDING', (1,0), (1,0), 10),
             ]))
             self.story.append(table_firma)
-            self.story.append(Spacer(1, 0.5*inch)) # Add more space after the signature block
         except Exception as e:
             self.story.append(Paragraph("Error al generar la imagen de la firma: " + str(e), self.style_body))
         finally:
