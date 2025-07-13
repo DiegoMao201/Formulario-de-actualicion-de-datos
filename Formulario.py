@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 12.1 (Rediseño profesional, layout institucional, tabla gerencial, PDF agradable)
+# Versión 13.0 (Diseño profesional final, layout optimizado, tablas elegantes)
 # Fecha: 13 de Julio de 2025
 # =================================================================================================
 
@@ -14,7 +14,7 @@ import tempfile
 import os
 import numpy as np
 
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, FrameBreak
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, PageBreak, Flowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
@@ -31,11 +31,11 @@ from email.mime.application import MIMEApplication
 
 st.set_page_config(page_title="Portal de Vinculación | Ferreinox", page_icon="✍️", layout="wide")
 
-# --- Institutional Colors (inspired by ferreinox.co - dark blue, light blue/yellow accents) ---
-FERREINOX_DARK_BLUE = "#0D47A1" # Deeper blue, similar to the one used for titles in the original code
-FERREINOX_ACCENT_BLUE = "#1565C0" # Slightly lighter blue, used for buttons/highlights
-FERREINOX_LIGHT_BG = "#F0F2F6" # Light background from original CSS
-FERREINOX_YELLOW_ACCENT = "#FBC02D" # Found in "EVOLUCIONANDO JUNTOS"
+# --- Institutional Colors ---
+FERREINOX_DARK_BLUE = "#0D47A1"
+FERREINOX_ACCENT_BLUE = "#1565C0"
+FERREINOX_LIGHT_BG = "#F0F2F6"
+FERREINOX_YELLOW_ACCENT = "#FBC02D"
 
 st.markdown(f"""
 <style>
@@ -93,63 +93,59 @@ def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
         Autorización, y acepto la finalidad en ella descrita y las consecuencias que se derivan de ella.
     """
 
-# --- PDF GENERATOR: REDISEÑO GERENCIAL, INSTITUCIONAL, PROFESIONAL ---
+class HorizontalRule(Flowable):
+    def __init__(self, width, thickness=1, color=colors.lightgrey):
+        Flowable.__init__(self)
+        self.width = width
+        self.thickness = thickness
+        self.color = color
+
+    def draw(self):
+        self.canv.setStrokeColor(self.color)
+        self.canv.setLineWidth(self.thickness)
+        self.canv.line(0, 0, self.width, 0)
+
 class PDFGeneratorPlatypus:
-    def __init__(self, data):
+    def __init__(self, data, doc_width):
         self.data = data
         self.story = []
+        self.doc_width = doc_width
 
         styles = getSampleStyleSheet()
-        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
-        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=16, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
+        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=12)
+        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=15, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
         self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
-        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=12, spaceAfter=8)
-        self.style_blue_title = ParagraphStyle(name='BlueTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor(FERREINOX_DARK_BLUE), alignment=TA_LEFT, spaceAfter=6)
+        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=13, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=10, spaceAfter=10)
         self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=TA_LEFT)
         self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=14)
 
     def _on_page(self, canvas, doc):
         canvas.saveState()
+        # --- Header ---
         try:
-            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.5*inch, height=0.8*inch, hAlign='LEFT')
+            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.2*inch, height=0.7*inch, hAlign='LEFT')
         except Exception:
             logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body)
-
-        header_content = [
-            [
-                logo,
-                Paragraph(
-                    "<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS DE CLIENTE</b>",
-                    self.style_header_title
-                )
-            ]
-        ]
-        header_table = Table(header_content, colWidths=[3.0*inch, 4.2*inch], hAlign='LEFT')
-        header_table.setStyle(
-            TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-                ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-                ('LEFTPADDING', (0,0), (-1,-1), 0),
-                ('RIGHTPADDING', (0,0), (-1,-1), 0),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-                ('TOPPADDING', (0,0), (-1,-1), 0)
-            ])
-        )
-        w, h = header_table.wrap(doc.width, doc.topMargin)
-        header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h + 15)
+        
+        header_content = [[logo, Paragraph("<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS DE CLIENTE</b>", self.style_header_title)]]
+        header_table = Table(header_content, colWidths=[2.5*inch, self.doc_width - 2.5*inch], hAlign='LEFT')
+        header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+        
+        w, h = header_table.wrap(self.doc_width, doc.topMargin)
+        header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h + 10)
+        
+        # --- Horizontal Line below Header ---
+        canvas.setStrokeColor(colors.lightgrey)
+        canvas.setLineWidth(0.5)
+        canvas.line(doc.leftMargin, doc.height + doc.topMargin - h, doc.leftMargin + self.doc_width, doc.height + doc.topMargin - h)
         canvas.restoreState()
 
+        # --- Footer ---
         canvas.saveState()
-        footer_content = [
-            [Paragraph(f"<b>EVOLUCIONANDO <font color='{FERREINOX_YELLOW_ACCENT}'>JUNTOS</font></b>", self.style_footer), Paragraph(f"Página {doc.page}", self.style_footer)]
-        ]
-        footer_table = Table(footer_content, colWidths=[doc.width/2, doc.width/2])
-        footer_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (0,0), 'LEFT'),
-            ('ALIGN', (1,0), (1,0), 'RIGHT'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
-        ]))
-        w, h = footer_table.wrap(doc.width, doc.bottomMargin)
+        footer_content = [[Paragraph(f"<b>EVOLUCIONANDO <font color='{FERREINOX_YELLOW_ACCENT}'>JUNTOS</font></b>", self.style_footer), Paragraph(f"Página {doc.page}", self.style_footer)]]
+        footer_table = Table(footer_content, colWidths=[self.doc_width/2, self.doc_width/2])
+        footer_table.setStyle(TableStyle([('ALIGN', (0,0), (0,0), 'LEFT'), ('ALIGN', (1,0), (1,0), 'RIGHT'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+        w, h = footer_table.wrap(self.doc_width, doc.bottomMargin)
         footer_table.drawOn(canvas, doc.leftMargin, h - 10)
         canvas.restoreState()
 
@@ -157,114 +153,94 @@ class PDFGeneratorPlatypus:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
             pdf_path = temp_pdf.name
 
-        doc = BaseDocTemplate(
-            pdf_path, pagesize=letter,
-            leftMargin=0.6*inch, rightMargin=0.6*inch, topMargin=1.1*inch, bottomMargin=0.6*inch
-        )
+        doc = BaseDocTemplate(pdf_path, pagesize=letter, leftMargin=0.75*inch, rightMargin=0.75*inch, topMargin=1.2*inch, bottomMargin=0.8*inch)
         main_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame')
         template = PageTemplate(id='main_template', frames=[main_frame], onPage=self._on_page)
         doc.addPageTemplates([template])
-
-        self.story.append(Spacer(1, 0.2*inch))
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
         
-        datos = [
-            [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body),
-             Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
-            [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body),
-             Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-            [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body),
-             Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
-            [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body),
-             Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
-            [Paragraph('Correo para Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), '', '']
+        self.story.append(Spacer(1, 0.4*inch))
+        self.story.append(Paragraph("1. DATOS BÁSICOS DE LA EMPRESA", self.style_section_title))
+        
+        datos_basicos = [
+            [Paragraph('Razón Social', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body)],
+            [Paragraph('Nombre Comercial', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body)],
+            [Paragraph('NIT', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body)],
+            [Paragraph('Dirección Principal', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+            [Paragraph('Ciudad', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+            [Paragraph('Teléfono Fijo', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+            [Paragraph('Celular General', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
+            [Paragraph('Correo para Notificaciones', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)],
         ]
-        table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
+        table_basicos = Table(datos_basicos, colWidths=[2.0*inch, 5.0*inch], hAlign='LEFT')
         table_basicos.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('SPAN', (1,-1), (3,-1)),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ]))
-        self.story.append(table_basicos)
-        self.story.append(Spacer(1, 0.15*inch))
-
-        self.story.append(Paragraph("Información de Contactos", self.style_blue_title))
-        contactos_tabla = [
-            [Paragraph('Contacto de Compras', self.style_table_header), Paragraph('Contacto de Pagos / Cartera', self.style_table_header)],
-            [Paragraph(f"<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Celular:</b> {self.data.get('compras_celular', '')}", self.style_body),
-             Paragraph(f"<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Celular:</b> {self.data.get('pagos_celular', '')}", self.style_body)]
-        ]
-        contactos_table = Table(contactos_tabla, colWidths=[3.6*inch, 3.6*inch], rowHeights=[0.3*inch, 0.6*inch])
-        contactos_table.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
             ('TOPPADDING', (0,0), (-1,-1), 6),
             ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('LINEAFTER', (0,0), (0,-1), 0.5, colors.lightgrey),
         ]))
-        self.story.append(contactos_table)
-        self.story.append(Spacer(1, 0.15*inch))
-
-        self.story.append(Paragraph("Información Logística", self.style_blue_title))
-        logistica_tabla = [
-            [Paragraph('Lugares de entrega autorizados:', self.style_table_header), Paragraph(self.data.get('lugares_entrega', ''), self.style_body)],
-            [Paragraph('Requisitos para la entrega de mercancía:', self.style_table_header), Paragraph(self.data.get('requisitos_entrega', ''), self.style_body)]
-        ]
-        table_logistica = Table(logistica_tabla, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
-        table_logistica.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
-            ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ]))
-        self.story.append(table_logistica)
-        
-        # Force a page break to distribute content
-        self.story.append(FrameBreak())
+        self.story.append(table_basicos)
         self.story.append(Spacer(1, 0.2*inch))
-
-        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
+        
+        self.story.append(Paragraph("2. DATOS DEL REPRESENTANTE LEGAL", self.style_section_title))
+        datos_rep_legal = [
+            [Paragraph('Nombre Completo', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body)],
+            [Paragraph('Tipo de Identificación', self.style_table_header), Paragraph(self.data.get('tipo_id', ''), self.style_body)],
+            [Paragraph('Número de Identificación', self.style_table_header), Paragraph(self.data.get('cedula_rep_legal', ''), self.style_body)],
+            [Paragraph('Ciudad de Expedición', self.style_table_header), Paragraph(self.data.get('lugar_exp_id', ''), self.style_body)],
+        ]
+        table_rep_legal = Table(datos_rep_legal, colWidths=[2.0*inch, 5.0*inch], hAlign='LEFT')
+        table_rep_legal.setStyle(table_basicos.getStyle()) # Reuse style
+        self.story.append(table_rep_legal)
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        self.story.append(Paragraph("3. INFORMACIÓN DE CONTACTOS Y LOGÍSTICA", self.style_section_title))
+        datos_contactos = [
+            [Paragraph('Contacto de Compras', self.style_table_header), Paragraph(f"<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/><b>Correo:</b> {self.data.get('compras_correo', '')}<br/><b>Celular:</b> {self.data.get('compras_celular', '')}", self.style_body)],
+            [Paragraph('Contacto de Pagos', self.style_table_header), Paragraph(f"<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/><b>Correo:</b> {self.data.get('pagos_correo', '')}<br/><b>Celular:</b> {self.data.get('pagos_celular', '')}", self.style_body)],
+            [Paragraph('Lugares de Entrega', self.style_table_header), Paragraph(self.data.get('lugares_entrega', '').replace('\n', '<br/>'), self.style_body)],
+            [Paragraph('Requisitos de Entrega', self.style_table_header), Paragraph(self.data.get('requisitos_entrega', '').replace('\n', '<br/>'), self.style_body)],
+        ]
+        table_contactos = Table(datos_contactos, colWidths=[2.0*inch, 5.0*inch], hAlign='LEFT')
+        table_contactos.setStyle(table_basicos.getStyle()) # Reuse style
+        self.story.append(table_contactos)
+        
+        self.story.append(PageBreak())
+        
+        self.story.append(Paragraph("4. AUTORIZACIÓN PARA CONSULTA EN CENTRALES DE RIESGO (HABEAS DATA)", self.style_section_title))
         self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
         self.story.append(Spacer(1, 0.2*inch))
 
-        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
+        self.story.append(Paragraph("5. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
         self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
         self.story.append(Spacer(1, 0.3*inch))
 
-        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title))
+        self.story.append(Paragraph("6. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title))
         firma_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_img:
                 firma_path = temp_img.name
             
-            firma_img = self.data['firma_img_pil']
-            if firma_img.mode == "RGBA":
-                background = Image.new("RGB", firma_img.size, (255, 255, 255))
-                background.paste(firma_img, mask=firma_img.split()[3])
+            firma_img_pil = self.data['firma_img_pil']
+            if firma_img_pil.mode == "RGBA":
+                background = Image.new("RGB", firma_img_pil.size, (255, 255, 255))
+                background.paste(firma_img_pil, mask=firma_img_pil.split()[3])
                 background.save(firma_path, format="PNG")
             else:
-                firma_img.save(firma_path, format="PNG")
+                firma_img_pil.save(firma_path, format="PNG")
 
-            firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
-            firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
+            firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch, hAlign='LEFT')
+            firma_texto = f"""<b>Firma en señal de aceptación de todo lo anterior.</b><br/><br/>
+                <b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
                 <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
-                <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v12.1"""
+                <b>Fecha y Hora de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
+                <b>Consentimiento Vía:</b> Portal Web Institucional v13.0"""
             
-            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
-            table_firma.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('LEFTPADDING', (1,0), (1,0), 10),
-            ]))
+            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.2*inch], hAlign='LEFT')
+            table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
             self.story.append(table_firma)
         except Exception as e:
             self.story.append(Paragraph("Error al generar la imagen de la firma: " + str(e), self.style_body))
@@ -306,7 +282,7 @@ def send_email_with_attachment(recipient_email, subject, body, pdf_path, filenam
     smtp_server = st.secrets.email_credentials.smtp_server
     smtp_port = int(st.secrets.email_credentials.smtp_port)
     msg = MIMEMultipart()
-    msg['From'] = sender_email
+    msg['From'] = f"Portal Ferreinox <{sender_email}>"
     msg['To'] = recipient_email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'html'))
@@ -344,7 +320,8 @@ else:
     with st.form(key="formulario_principal"):
         st.header("👤 Formulario de Vinculación")
         st.markdown("Por favor, complete todos los campos a continuación.")
-        st.subheader("Datos de la Empresa")
+        
+        st.subheader("1. Datos de la Empresa")
         col1, col2 = st.columns(2)
         with col1:
             razon_social = st.text_input("Razón Social*", placeholder="Mi Empresa S.A.S.")
@@ -356,35 +333,38 @@ else:
             ciudad = st.text_input("Ciudad*", placeholder="Pereira")
             correo = st.text_input("Correo para Notificaciones y Facturas*", placeholder="facturacion@empresa.com")
             celular = st.text_input("Celular de Contacto General", placeholder="3101234567")
-        st.subheader("Datos del Representante Legal")
+        
+        st.subheader("2. Datos del Representante Legal")
         col3, col4, col5 = st.columns(3)
         with col3:
             rep_legal = st.text_input("Nombre Completo del Representante Legal*", placeholder="Ana María Pérez")
+            tipo_id = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"])
         with col4:
             cedula_rep_legal = st.text_input("Número de Identificación*", placeholder="1020304050")
         with col5:
-            tipo_id = st.selectbox("Tipo de ID*", ["C.C.", "C.E.", "Pasaporte", "Otro"])
             lugar_exp_id = st.text_input("Ciudad de Expedición del ID*", placeholder="Pereira")
-        st.subheader("Información de Contactos")
+
+        st.subheader("3. Información de Contactos y Logística")
         col6, col7 = st.columns(2)
         with col6:
             st.markdown("#### Contacto de Compras")
-            compras_nombre = st.text_input("Nombre (Compras)", key="compras_nombre")
-            compras_correo = st.text_input("Correo (Compras)", key="compras_correo")
-            compras_celular = st.text_input("Celular (Compras)", key="compras_celular")
+            compras_nombre = st.text_input("Nombre (Compras)", key="compras_nombre", placeholder="Jefe de Compras")
+            compras_correo = st.text_input("Correo (Compras)", key="compras_correo", placeholder="compras@empresa.com")
+            compras_celular = st.text_input("Celular (Compras)", key="compras_celular", placeholder="311...")
         with col7:
             st.markdown("#### Contacto de Pagos / Cartera")
-            pagos_nombre = st.text_input("Nombre (Pagos)", key="pagos_nombre")
-            pagos_correo = st.text_input("Correo (Pagos)", key="pagos_correo")
-            pagos_celular = st.text_input("Celular (Pagos)", key="pagos_celular")
-        st.subheader("Información Logística")
+            pagos_nombre = st.text_input("Nombre (Pagos)", key="pagos_nombre", placeholder="Jefe de Cartera")
+            pagos_correo = st.text_input("Correo (Pagos)", key="pagos_correo", placeholder="pagos@empresa.com")
+            pagos_celular = st.text_input("Celular (Pagos)", key="pagos_celular", placeholder="312...")
+        
         lugares_entrega = st.text_area("Lugares de entrega autorizados (direcciones)", placeholder="Sede Principal: Cr 13 #19-26, Pereira\nBodega: Km 5 Vía Cerritos, Bodega 4")
         requisitos_entrega = st.text_area("Requisitos para la entrega de mercancía", placeholder="Dejar en portería a nombre de Juan Valdés. Requiere sello de recibido.")
+        
         st.subheader("✍️ Firma Digital de Aceptación")
-        st.caption("El Representante Legal debe firmar en el siguiente recuadro para validar toda la información y autorizaciones.")
+        st.caption("El Representante Legal debe firmar en el recuadro para validar la información y autorizaciones.")
         canvas_result = st_canvas(
             fill_color="rgba(255, 255, 255, 0)", stroke_width=3, stroke_color="#000000",
-            background_color="#FFFFFF", height=200, drawing_mode="freedraw", key="canvas_firma"
+            background_color="#FFFFFF", height=150, drawing_mode="freedraw", key="canvas_firma"
         )
         submit_button = st.form_submit_button(label="✅ Finalizar y Enviar Formulario Firmado", use_container_width=True)
 
@@ -392,7 +372,7 @@ else:
         campos_obligatorios = [razon_social, nit, direccion, ciudad, correo, rep_legal, cedula_rep_legal, lugar_exp_id, nombre_comercial]
         if not all(campos_obligatorios):
             st.warning("⚠️ Por favor, complete todos los campos marcados con *.")
-        elif canvas_result.image_data is None:
+        elif canvas_result.image_data is None or np.sum(canvas_result.image_data) == 0:
             st.warning("🖋️ La firma del Representante Legal es indispensable para validar el documento.")
         else:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -412,11 +392,13 @@ else:
                         'firma_img_pil': firma_img_pil
                     }
                     st.write("Paso 1/4: Generando documento PDF institucional...")
-                    pdf_gen = PDFGeneratorPlatypus(form_data)
+                    pdf_gen = PDFGeneratorPlatypus(form_data, doc_width=7.5*inch - 0.75*inch*2) # Pass document width
                     pdf_file_path = pdf_gen.generate()
+                    
                     st.write("Paso 2/4: Guardando registro en Log de Trazabilidad...")
                     log_row = [timestamp, doc_id, razon_social, nit, rep_legal, correo, ciudad, telefono, celular, compras_nombre, compras_correo, pagos_nombre, pagos_correo, "Enviado y Notificado"]
                     worksheet.append_row(log_row, value_input_option='USER_ENTERED')
+                    
                     st.write("Paso 3/4: Enviando correo de confirmación al cliente...")
                     file_name = f"Actualizacion_Datos_{razon_social.replace(' ', '_')}_{nit}.pdf"
                     email_body = f"""
@@ -430,12 +412,14 @@ else:
                     <p><i>Este es un mensaje automático, por favor no responda a este correo.</i></p>
                     """
                     send_email_with_attachment(correo, f"Confirmación de Vinculación - {razon_social}", email_body, pdf_file_path, file_name)
+                    
                     st.write("Paso 4/4: Archivando PDF en el repositorio digital...")
                     file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
                     media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
                     file = drive_service.files().create(
                         body=file_metadata, media_body=media, fields='id, webViewLink', supportsAllDrives=True
                     ).execute()
+                    
                     st.balloons()
                     st.success(f"**¡Proceso Finalizado Exitosamente!**")
                     st.markdown(f"El formulario para **{razon_social}** ha sido generado, archivado y enviado a su correo electrónico.")
