@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 10.1 (Corrección en la Definición de Estilos de ReportLab)
+# Versión 10.0 (Rediseño Total de PDF con Platypus y Flujo de Aceptación Mejorado)
 # Fecha: 12 de Julio de 2025
 # =================================================================================================
 
@@ -93,62 +93,26 @@ def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
         Autorización, y acepto la finalidad en ella descrita y las consecuencias que se derivan de ella.
     """
 
-# --- 5. CLASE GENERADORA DE PDF (CORREGIDA) ---
+# --- 5. CLASE GENERADORA DE PDF (REDISEÑADA CON PLATYPUS) ---
 class PDFGeneratorPlatypus:
     def __init__(self, buffer, data):
         self.buffer = buffer
         self.data = data
         self.story = []
         
-        # --- CORRECCIÓN EN LA DEFINICIÓN DE ESTILOS ---
-        # Se obtienen los estilos base y se crean nuevos o se modifican
-        # los existentes para evitar el error de "estilo ya definido".
+        # Configuración de estilos de texto
         self.styles = getSampleStyleSheet()
-        
-        # Estilo para el Título Principal
-        self.style_title = ParagraphStyle(
-            name='Title',
-            parent=self.styles['h1'],
-            fontName='Helvetica-Bold',
-            fontSize=14,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#0D47A1')
-        )
-        
-        # Estilo para Subtítulos de secciones
-        self.style_subtitle = ParagraphStyle(
-            name='SubTitle',
-            parent=self.styles['h2'],
-            fontName='Helvetica-Bold',
-            fontSize=11,
-            alignment=TA_LEFT,
-            textColor=colors.HexColor('#0D47A1'),
-            spaceAfter=6
-        )
-
-        # Estilo para el cuerpo de texto normal
-        self.style_body = ParagraphStyle(
-            name='Body',
-            parent=self.styles['Normal'],
-            fontName='Helvetica',
-            fontSize=9,
-            alignment=TA_JUSTIFY,
-            leading=12
-        )
-
-        # Estilo para el pie de página
-        self.style_footer = ParagraphStyle(
-            name='Footer',
-            parent=self.styles['Normal'],
-            fontName='Helvetica',
-            fontSize=8,
-            alignment=TA_CENTER,
-            textColor=colors.grey
-        )
+        # SOLUCIÓN: Se cambió el nombre del estilo de 'Title' a 'DocTitle' para evitar conflicto con el estilo predefinido.
+        self.styles.add(ParagraphStyle(name='DocTitle', parent=self.styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=colors.HexColor('#0D47A1')))
+        self.styles.add(ParagraphStyle(name='SubTitle', parent=self.styles['h2'], fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=colors.HexColor('#0D47A1')))
+        self.styles.add(ParagraphStyle(name='Body', parent=self.styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=12))
+        self.styles.add(ParagraphStyle(name='BodyBold', parent=self.styles['Body'], fontName='Helvetica-Bold'))
+        self.styles.add(ParagraphStyle(name='Footer', parent=self.styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_CENTER, textColor=colors.grey))
 
     def _header(self, canvas, doc):
         canvas.saveState()
         try:
+            # Dibuja el logo en la cabecera
             logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.5*inch, height=0.8*inch)
             logo.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - 0.9*inch)
         except:
@@ -158,36 +122,42 @@ class PDFGeneratorPlatypus:
 
     def _footer(self, canvas, doc):
         canvas.saveState()
-        [cite_start]p_footer = Paragraph("EVOLUCIONANDO JUNTOS [cite: 2]", self.style_footer)
+        p_footer = Paragraph("EVOLUCIONANDO JUNTOS", self.styles['Footer'])
         w, h = p_footer.wrap(doc.width, doc.bottomMargin)
         p_footer.drawOn(canvas, doc.leftMargin, h)
         
-        p_page = Paragraph(f"Página {doc.page}", self.style_footer)
+        p_page = Paragraph(f"Página {doc.page}", self.styles['Footer'])
         w, h = p_page.wrap(doc.width, doc.bottomMargin)
         p_page.drawOn(canvas, doc.width - w + doc.rightMargin, h)
         canvas.restoreState()
 
     def generate(self):
+        # Configura el documento y las plantillas de página con encabezado y pie
         doc = BaseDocTemplate(self.buffer, pagesize=letter, leftMargin=1*inch, rightMargin=1*inch, topMargin=1.2*inch, bottomMargin=1*inch)
         frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
         template = PageTemplate(id='main_template', frames=[frame], onPage=self._header, onPageEnd=self._footer)
         doc.addPageTemplates([template])
 
-        [cite_start]self.story.append(Paragraph("ACTUALIZACIÓN Y AUTORIZACIÓN DE DATOS DE CLIENTE [cite: 5, 38]", self.style_title))
+        # --- CONSTRUCCIÓN DEL "STORY" DEL PDF ---
+        
+        # SOLUCIÓN: Se usa el nuevo nombre de estilo 'DocTitle'.
+        self.story.append(Paragraph("ACTUALIZACIÓN Y AUTORIZACIÓN DE DATOS DE CLIENTE", self.styles['DocTitle']))
         self.story.append(Spacer(1, 0.3*inch))
         
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_subtitle))
+        # --- Tabla de Datos Básicos ---
+        self.story.append(Paragraph("1. DATOS BÁSICOS", self.styles['SubTitle']))
+        self.story.append(Spacer(1, 0.1*inch))
         
         datos_basicos = [
-            [Paragraph('<b>Razón Social:</b>', self.style_body), Paragraph(self.data.get('razon_social', ''), self.style_body)],
-            [Paragraph('<b>Nombre Comercial:</b>', self.style_body), Paragraph(self.data.get('nombre_comercial', ''), self.style_body)],
-            [Paragraph('<b>NIT:</b>', self.style_body), Paragraph(self.data.get('nit', ''), self.style_body)],
-            [Paragraph('<b>Representante Legal:</b>', self.style_body), Paragraph(self.data.get('rep_legal', ''), self.style_body)],
-            [Paragraph('<b>Dirección:</b>', self.style_body), Paragraph(self.data.get('direccion', ''), self.style_body)],
-            [Paragraph('<b>Ciudad:</b>', self.style_body), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-            [Paragraph('<b>Teléfono:</b>', self.style_body), Paragraph(self.data.get('telefono', ''), self.style_body)],
-            [Paragraph('<b>Celular:</b>', self.style_body), Paragraph(self.data.get('celular', ''), self.style_body)],
-            [Paragraph('<b>Correo para Notificaciones:</b>', self.style_body), Paragraph(self.data.get('correo', ''), self.style_body)],
+            [Paragraph('<b>Razón Social:</b>', self.styles['Body']), Paragraph(self.data.get('razon_social', ''), self.styles['Body'])],
+            [Paragraph('<b>Nombre Comercial:</b>', self.styles['Body']), Paragraph(self.data.get('nombre_comercial', ''), self.styles['Body'])],
+            [Paragraph('<b>NIT:</b>', self.styles['Body']), Paragraph(self.data.get('nit', ''), self.styles['Body'])],
+            [Paragraph('<b>Representante Legal:</b>', self.styles['Body']), Paragraph(self.data.get('rep_legal', ''), self.styles['Body'])],
+            [Paragraph('<b>Dirección:</b>', self.styles['Body']), Paragraph(self.data.get('direccion', ''), self.styles['Body'])],
+            [Paragraph('<b>Ciudad:</b>', self.styles['Body']), Paragraph(self.data.get('ciudad', ''), self.styles['Body'])],
+            [Paragraph('<b>Teléfono:</b>', self.styles['Body']), Paragraph(self.data.get('telefono', ''), self.styles['Body'])],
+            [Paragraph('<b>Celular:</b>', self.styles['Body']), Paragraph(self.data.get('celular', ''), self.styles['Body'])],
+            [Paragraph('<b>Correo para Notificaciones:</b>', self.styles['Body']), Paragraph(self.data.get('correo', ''), self.styles['Body'])],
         ]
         table_basicos = Table(datos_basicos, colWidths=[2.2*inch, 4.3*inch])
         table_basicos.setStyle(TableStyle([
@@ -199,15 +169,16 @@ class PDFGeneratorPlatypus:
         self.story.append(table_basicos)
         self.story.append(Spacer(1, 0.3*inch))
 
+        # --- Contactos ---
         datos_contactos = [
-            [cite_start][Paragraph('<b>CONTACTO DE COMPRAS</b> [cite: 18][cite_start]', self.style_body), Paragraph('<b>CONTACTO DE PAGOS</b> [cite: 22]', self.style_body)],
+            [Paragraph('<b>CONTACTO DE COMPRAS</b>', self.styles['Body']), Paragraph('<b>CONTACTO DE PAGOS</b>', self.styles['Body'])],
             [
                 Paragraph(f"""<b>Nombre:</b> {self.data.get('compras_nombre', '')}<br/>
                                 <b>Correo:</b> {self.data.get('compras_correo', '')}<br/>
-                                <b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.style_body),
+                                <b>Tel/Cel:</b> {self.data.get('compras_celular', '')}""", self.styles['Body']),
                 Paragraph(f"""<b>Nombre:</b> {self.data.get('pagos_nombre', '')}<br/>
                                 <b>Correo:</b> {self.data.get('pagos_correo', '')}<br/>
-                                <b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.style_body)
+                                <b>Tel/Cel:</b> {self.data.get('pagos_celular', '')}""", self.styles['Body'])
             ]
         ]
         table_contactos = Table(datos_contactos, colWidths=[3.25*inch, 3.25*inch])
@@ -223,16 +194,22 @@ class PDFGeneratorPlatypus:
         self.story.append(table_contactos)
         self.story.append(Spacer(1, 0.3*inch))
         
-        self.story.append(Paragraph("2. [cite_start]AUTORIZACIÓN HABEAS DATA [cite: 43]", self.style_subtitle))
-        self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.style_body))
+        # --- Autorizaciones ---
+        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.styles['SubTitle']))
+        self.story.append(Spacer(1, 0.1*inch))
+        self.story.append(Paragraph(get_texto_habeas_data(self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']), self.styles['Body']))
         self.story.append(Spacer(1, 0.3*inch))
 
-        [cite_start]self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES [cite: 65]", self.style_subtitle))
-        self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.style_body))
+        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.styles['SubTitle']))
+        self.story.append(Spacer(1, 0.1*inch))
+        self.story.append(Paragraph(get_texto_tratamiento_datos(self.data['rep_legal'], self.data['razon_social'], self.data['nit']), self.styles['Body']))
         self.story.append(Spacer(1, 0.3*inch))
 
-        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_subtitle))
+        # --- Sección de Firma y Aceptación ---
+        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.styles['SubTitle']))
+        self.story.append(Spacer(1, 0.1*inch))
         
+        # Prepara la imagen de la firma para Platypus
         firma_buffer = io.BytesIO()
         self.data['firma_img_pil'].save(firma_buffer, format='PNG')
         firma_buffer.seek(0)
@@ -241,12 +218,16 @@ class PDFGeneratorPlatypus:
         firma_texto = f"""<b>Nombre:</b> {self.data.get('rep_legal', '')}<br/>
                           <b>Identificación:</b> {self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}<br/>
                           <b>Fecha de Firma:</b> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br/>
-                          <b>Consentimiento Vía:</b> Portal Web v10.1"""
+                          <b>Consentimiento Vía:</b> Portal Web v10.0"""
 
-        table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_body)]], colWidths=[2.8*inch, 3.7*inch])
+        table_firma = Table([
+            [firma_image, Paragraph(firma_texto, self.styles['Body'])]
+        ], colWidths=[2.8*inch, 3.7*inch])
         table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+        
         self.story.append(table_firma)
         
+        # Compila el documento
         doc.build(self.story)
 
 # --- 6. CONFIGURACIÓN DE CONEXIONES Y SECRETOS ---
@@ -393,6 +374,7 @@ else:
             
             with st.spinner("Procesando su solicitud... Este proceso puede tardar un momento. ⏳"):
                 try:
+                    # Recolectar todos los datos del formulario
                     form_data = {
                         'razon_social': razon_social, 'nombre_comercial': nombre_comercial, 'nit': nit, 
                         'direccion': direccion, 'ciudad': ciudad, 'telefono': telefono, 'celular': celular,
