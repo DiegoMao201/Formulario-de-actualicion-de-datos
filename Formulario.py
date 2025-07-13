@@ -254,7 +254,7 @@ try:
     creds_info = st.secrets["google_creds"]
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/drive'])
     drive_service = build('drive', 'v3', credentials=creds)
-    DRIVE_FOLDER_ID = "AQUI_VA_EL_ID_DE_TU_CARPETA_DE_GOOGLE_DRIVE" # REEMPLAZA ESTO
+    DRIVE_FOLDER_ID = "0AK7Y6MdgYyoHUk9PVA" # REEMPLAZA ESTO
 except (FileNotFoundError, KeyError):
     st.error("🚨 ¡Error de Configuración de Drive! Revisa los secretos de la aplicación.")
     st.stop()
