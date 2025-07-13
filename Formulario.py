@@ -113,7 +113,7 @@ class PDFGeneratorPlatypus:
             logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.5*inch, height=0.8*inch, hAlign='LEFT')
         except Exception:
             logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body)
-        header_content = [[logo, Paragraph("<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS DE CLIENTE</b>", self.style_header_title)]]
+        header_content = [[logo, Paragraph("<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS</b>", self.style_header_title)]]
         header_table = Table(header_content, colWidths=[3.0*inch, 4.2*inch], hAlign='LEFT')
         header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'BOTTOM'), ('ALIGN', (1, 0), (1, 0), 'RIGHT'), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0), ('TOPPADDING', (0,0), (-1,-1), 0)]))
         w, h = header_table.wrap(doc.width, doc.topMargin)
