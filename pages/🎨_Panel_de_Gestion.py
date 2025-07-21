@@ -94,14 +94,16 @@ def normalizar_texto(texto):
     if not isinstance(texto, str): return texto
     try:
         texto_sin_tildes = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
-        return texto_sin_tildes.upper().replace('-', ' ').replace('_', ' ').strip().replace(' ', ' ')
+        # Reemplazar doble espacio por uno simple, luego normalizar un solo espacio
+        return texto_sin_tildes.upper().replace('-', ' ').replace('_', ' ').strip().replace('  ', ' ')
     except (TypeError, AttributeError): return texto
 
 @st.cache_data(ttl=300)
 def load_sales_data(_dbx):
     """
     Descarga y carga el archivo de ventas desde Dropbox,
-    manejando los nombres de las columnas explícitamente.
+    manejando los nombres de las columnas explícitamente y
+    convirtiendo 'fecha_venta' a datetime con timezone.
     """
     if _dbx is None: return pd.DataFrame()
     try:
@@ -123,24 +125,27 @@ def load_sales_data(_dbx):
         df = pd.read_csv(io.StringIO(contenido_csv), sep='|', header=None,
                          names=column_names_ventas, engine='python', on_bad_lines='warn')
 
-        # Si el CSV tiene menos columnas de las esperadas, Pandas llenará con NaN
-        # Si tiene más, solo tomará las primeras definidas en names.
-
-        # Normalizar algunas columnas para asegurar consistencia, similar al otro script
-        # Asegúrate que 'id_cliente' sea una cadena.
+        # Normalizar algunas columnas para asegurar consistencia
         if 'id_cliente' in df.columns:
             df['id_cliente'] = df['id_cliente'].astype(str)
         if 'nomvendedor' in df.columns:
             df['nomvendedor'] = df['nomvendedor'].apply(normalizar_texto)
         if 'TipoDocumento' in df.columns:
             df['TipoDocumento'] = df['TipoDocumento'].apply(normalizar_texto)
-
+        
+        # Convertir 'fecha_venta' a datetime y hacerla timezone-aware
+        if 'fecha_venta' in df.columns:
+            df['fecha_venta'] = pd.to_datetime(df['fecha_venta'], dayfirst=True, errors='coerce')
+            # Localizar a la zona horaria de Bogotá (GMT-5)
+            # Esto asignará el timezone a las fechas
+            df['fecha_venta'] = df['fecha_venta'].dt.tz_localize('America/Bogota', errors='coerce')
+        
         return df
     except dropbox.exceptions.ApiError as e:
         st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
         return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Retorna un DF vacío con cols mínimas
     except Exception as e:
-        st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|).")
+        st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|) y las columnas esperadas.")
         return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Retorna un DF vacío con cols mínimas
 
 # =================================================================================================
@@ -232,7 +237,7 @@ if check_password():
     if not sales_df.empty and 'id_cliente' in sales_df.columns:
         sales_df['id_cliente'] = sales_df['id_cliente'].astype(str)
     else:
-        st.warning("La columna 'id_cliente' no se encontró en el archivo de ventas o el DataFrame está vacío.")
+        st.warning("La columna 'id_cliente' no se encontró en el archivo de ventas o el DataFrame está vacío. Se procederá con un DataFrame de ventas limitado.")
         sales_df = pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Asegura un DF mínimo
 
     if not client_df.empty:
@@ -252,9 +257,8 @@ if check_password():
         if sales_df.empty or 'fecha_venta' not in sales_df.columns or 'id_cliente' not in sales_df.columns:
             st.warning("No se pudieron cargar los datos de ventas correctamente o faltan columnas esenciales ('fecha_venta', 'id_cliente'). Revisa la conexión con Dropbox y el archivo.")
         else:
-            # Convertir la columna de fecha a formato datetime y filtrar ventas recientes
-            sales_df['fecha_venta'] = pd.to_datetime(sales_df['fecha_venta'], dayfirst=True, errors='coerce')
-            # Establecer la zona horaria de Bogotá (GMT-5)
+            # La columna 'fecha_venta' ya es timezone-aware desde load_sales_data
+            # 'four_days_ago' también es timezone-aware. ¡Ahora la comparación funcionará!
             bogota_tz = pytz.timezone('America/Bogota')
             current_time_bogota = datetime.now(bogota_tz)
             four_days_ago = current_time_bogota - timedelta(days=4)
@@ -348,21 +352,23 @@ if check_password():
             # Configura la zona horaria para la fecha actual
             bogota_tz = pytz.timezone('America/Bogota')
             today = datetime.now(bogota_tz)
+            
             # Convierte la columna de fecha de nacimiento a formato datetime
             if 'Fecha_Nacimiento' in client_df.columns:
                 client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
-            else:
-                st.warning("La columna 'Fecha_Nacimiento' no se encontró en el DataFrame de clientes.")
-                birthday_clients = pd.DataFrame() # No hay fecha de nacimiento, no hay cumpleaños para mostrar
-            
-            if 'Fecha_Nacimiento' in client_df.columns: # Re-verificar después de la conversión
+                
+                # Opcional: Si quieres que Fecha_Nacimiento sea timezone-aware para futuras comparaciones,
+                # aunque para día y mes no es estrictamente necesario, puede ayudar a la consistencia.
+                # client_df['Fecha_Nacimiento'] = client_df['Fecha_Nacimiento'].dt.tz_localize('America/Bogota', errors='coerce')
+                
                 # Filtra los clientes que cumplen años hoy
                 birthday_clients = client_df[
                     (client_df['Fecha_Nacimiento'].dt.month == today.month) &
                     (client_df['Fecha_Nacimiento'].dt.day == today.day)
                 ].copy() # .copy() para evitar SettingWithCopyWarning
             else:
-                birthday_clients = pd.DataFrame() # Si no hay columna, el DF de cumpleaños estará vacío
+                st.warning("La columna 'Fecha_Nacimiento' no se encontró en el DataFrame de clientes. No se mostrarán cumpleaños.")
+                birthday_clients = pd.DataFrame() # No hay fecha de nacimiento, no hay cumpleaños para mostrar
             
             if birthday_clients.empty:
                 st.info("No hay clientes cumpliendo años hoy.")
@@ -396,7 +402,8 @@ if check_password():
                         with col1: st.write(f"**{client_name}**")
                         with col2:
                             if email: # Solo muestra el botón si hay un email
-                                if st.button(f"📧 Enviar Email", key=f"email_bday_{index}", use_container_width=True): # Usar index para key única
+                                # Usar un key único que incluya el índice o un id único para el botón
+                                if st.button(f"📧 Enviar Email", key=f"email_bday_{index}_{client_name[:5]}", use_container_width=True): 
                                     subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
                                     if send_email(email, subject, message):
                                         st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
