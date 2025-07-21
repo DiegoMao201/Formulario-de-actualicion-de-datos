@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.4 (Columnas de Contacto Editables)
+# Versión 1.5 (Filtro de Productos Específicos y Mensaje Actualizado)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -126,6 +126,10 @@ def load_sales_data(_dbx):
         if 'nombre_cliente' in df.columns:
             df['nombre_cliente'] = df['nombre_cliente'].apply(normalizar_texto)
         
+        # ### AÑADIDO: Normalizar también el nombre del artículo para una búsqueda fiable
+        if 'nombre_articulo' in df.columns:
+            df['nombre_articulo'] = df['nombre_articulo'].astype(str).str.upper()
+
         if 'id_cliente' in df.columns:
             df['id_cliente'] = df['id_cliente'].astype(str)
         
@@ -219,6 +223,7 @@ if check_password():
     # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
     with st.container(border=True):
         st.header("📞 Seguimiento Post-Venta")
+        st.info("Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX en los últimos 4 días.")
 
         if sales_df.empty or 'fecha_venta' not in sales_df.columns:
             st.warning("No se pudieron cargar los datos de ventas correctamente o el archivo está vacío.")
@@ -228,16 +233,28 @@ if check_password():
             four_days_ago = current_time_bogota - timedelta(days=4)
             
             recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
-            
-            st.info(f"Se encontraron **{len(recent_sales)}** transacciones de venta en los últimos 4 días.")
 
-            if not recent_sales.empty and not client_df.empty:
+            # ### NUEVO: FILTRO POR PRODUCTOS CLAVE ###
+            # 1. Definir las palabras clave para buscar en los nombres de los artículos
+            product_keywords = ['KORAZA', 'VINILTEX', 'PINTULUX']
+            filter_pattern = '|'.join(product_keywords)
+
+            # 2. Filtrar el DataFrame de ventas recientes para que solo incluya transacciones de esos productos
+            if 'nombre_articulo' in recent_sales.columns:
+                filtered_sales = recent_sales[recent_sales['nombre_articulo'].str.contains(filter_pattern, case=True, na=False)].copy()
+            else:
+                st.warning("La columna 'nombre_articulo' no existe en el archivo de ventas, no se puede filtrar por producto.")
+                filtered_sales = pd.DataFrame() # DataFrame vacío si no se puede filtrar
+            
+            st.info(f"Se encontraron **{len(filtered_sales)}** transacciones de productos clave en los últimos 4 días.")
+
+            if not filtered_sales.empty and not client_df.empty:
                 
                 client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
-                recent_sales['nombre_norm'] = recent_sales['nombre_cliente']
+                filtered_sales['nombre_norm'] = filtered_sales['nombre_cliente']
 
                 merged_sales_clients = pd.merge(
-                    recent_sales,
+                    filtered_sales,
                     client_df[['nombre_norm', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
                     on='nombre_norm',
                     how='left'
@@ -250,14 +267,12 @@ if check_password():
                 merged_sales_clients.sort_values(by='fecha_venta', ascending=False, inplace=True)
                 merged_sales_clients.drop_duplicates(subset=['nombre_norm'], keep='first', inplace=True)
 
-                st.success(f"De estas, **{len(merged_sales_clients)}** clientes únicos con compras recientes fueron identificados. Selecciónalos para contactar.")
+                st.success(f"De estas, **{len(merged_sales_clients)}** clientes únicos con compras de productos clave fueron identificados. Selecciónalos para contactar.")
 
                 merged_sales_clients['Seleccionar'] = False
                 cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
                 actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
                 
-                # ### INICIO DE LA SECCIÓN CORREGIDA ###
-                # CORRECCIÓN: Se quitan 'Correo' y 'Teléfono / Celular' de la lista de deshabilitados.
                 disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta'] if col in merged_sales_clients.columns]
 
                 edited_df = st.data_editor(
@@ -266,7 +281,6 @@ if check_password():
                     disabled=disabled_cols,
                     column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
                 )
-                # ### FIN DE LA SECCIÓN CORREGIDA ###
                 
                 selected_clients = edited_df[edited_df['Seleccionar']]
 
@@ -278,7 +292,12 @@ if check_password():
                         client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
                         email = row.get('Correo', '')
                         phone = row.get('Teléfono / Celular', '')
-                        message = f"¡Hola, {client_name}! 👋 Soy de Ferreinox. Te escribo para saludarte y saber cómo te fue con el color y los productos que elegiste. ¡Esperamos que todo haya quedado espectacular! 🎨 Recuerda que en nosotros tienes un aliado. Con Pintuco, tu satisfacción es nuestra garantía."
+                        
+                        # ### NUEVO: MENSAJE ACTUALIZADO ###
+                        message = f"""¡Hola, {client_name}! 👋 Soy de Ferreinox SAS BIC.
+¡Te escribo con una sonrisa! 😊 Queríamos saber cómo quedó ese proyecto con el color 🎨 y los productos que eligieron.
+¡Estamos seguros de que el resultado fue espectacular! 🌟🚀
+Recuerda que en nosotros tienes más que un proveedor, tienes un aliado 🤝. Con la calidad de Pintuco, ¡tu satisfacción es nuestra mayor alegría! 🎉"""
                         
                         col1, col2, col3 = st.columns([2, 1, 1])
                         with col1: st.write(f"**{client_name}**")
@@ -298,7 +317,7 @@ if check_password():
                 else:
                     st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
             else:
-                 st.info("No hay ventas recientes o no se cargaron los datos de clientes para procesar.")
+                 st.info("No se encontraron compras de productos clave en los últimos 4 días o no se cargaron los datos de clientes.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
