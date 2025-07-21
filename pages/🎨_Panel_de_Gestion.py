@@ -16,6 +16,7 @@ from urllib.parse import quote
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import io # Import the io module
 
 # --- Configuración de la Página ---
 st.set_page_config(page_title="Gestión | Más Allá del Color", page_icon="🎨", layout="wide")
@@ -91,7 +92,8 @@ def load_sales_data(_dbx):
     try:
         file_path = '/data/ventas_detalle.csv'
         _, res = _dbx.files_download(path=file_path)
-        df = pd.read_csv(res.content)
+        # Decode the bytes content to string and wrap in StringIO
+        df = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
         return df
     except dropbox.exceptions.ApiError as e:
         st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
