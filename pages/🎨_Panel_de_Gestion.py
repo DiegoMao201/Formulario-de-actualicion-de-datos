@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.8 (Corrección para filtro de fecha exacta)
+# Versión 1.8 (Filtro por Fecha Exacta de hace 4 días)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -227,9 +227,9 @@ if check_password():
     # 3. Cálculos para las Métricas del Dashboard
     
     # Cálculo de Cumpleañeros
+    bogota_tz = pytz.timezone('America/Bogota')
+    today = datetime.now(bogota_tz)
     if not client_df.empty and 'Fecha_Nacimiento' in client_df.columns:
-        bogota_tz = pytz.timezone('America/Bogota')
-        today = datetime.now(bogota_tz)
         client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
         birthday_clients = client_df[
             (client_df['Fecha_Nacimiento'].dt.month == today.month) &
@@ -240,43 +240,29 @@ if check_password():
         birthday_clients = pd.DataFrame()
         num_cumpleaneros = 0
 
-    # ### INICIO: BLOQUE DE CÁLCULO CORREGIDO ###
+    # ### INICIO: BLOQUE DE CÁLCULO CON FILTRO DE FECHA EXACTA ###
     # Cálculo de Oportunidades de Conexión
     if not sales_df.empty and not client_df.empty:
-        # --- LÓGICA DE FECHA MODIFICADA ---
-        # Define la zona horaria y obtiene la fecha de hoy al inicio del día.
-        bogota_tz = pytz.timezone('America/Bogota')
-        today_normalized = datetime.now(bogota_tz).normalize()
+        # 1. Calcular la fecha OBJETIVO (exactamente hace 4 días)
+        target_date = (today - timedelta(days=4)).date()
 
-        # Calcula la fecha exacta de hace 4 días.
-        target_date = today_normalized - timedelta(days=4)
-        
-        # Define el rango para ese día específico (desde las 00:00:00 hasta las 23:59:59).
-        start_of_target_day = target_date
-        end_of_target_day = target_date + timedelta(days=1) - timedelta(seconds=1)
+        # 2. Filtrar ventas que ocurrieron EXACTAMENTE en la fecha objetivo
+        # Se usa .dt.date para comparar solo la parte de la fecha, ignorando la hora
+        sales_on_target_date = sales_df[sales_df['fecha_venta'].dt.date == target_date].copy()
 
-        # Filtra las ventas que ocurrieron EXACTAMENTE hace 4 días.
-        recent_sales = sales_df[
-            (sales_df['fecha_venta'] >= start_of_target_day) & 
-            (sales_df['fecha_venta'] <= end_of_target_day)
-        ].copy()
-        # --- FIN DE LÓGICA DE FECHA MODIFICADA ---
-        
+        # 3. Filtrar por productos clave sobre el resultado anterior
         product_keywords = ['KORAZA', 'VINILTEX', 'PINTULUX']
         filter_pattern = '|'.join(product_keywords)
         
-        if 'nombre_articulo' in recent_sales.columns:
-            filtered_sales = recent_sales[recent_sales['nombre_articulo'].str.contains(filter_pattern, case=True, na=False)].copy()
+        if 'nombre_articulo' in sales_on_target_date.columns:
+            filtered_sales = sales_on_target_date[sales_on_target_date['nombre_articulo'].str.contains(filter_pattern, case=True, na=False)].copy()
             
             client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
             filtered_sales['nombre_norm'] = filtered_sales['nombre_cliente']
             
             merged_sales_clients = pd.merge(filtered_sales, client_df, on='nombre_norm', how='left')
             
-            # --- LÍNEAS DE CORRECCIÓN AÑADIDAS ---
-            # Si 'Razón Social / Nombre Natural' quedó nulo tras el cruce, usa el nombre del archivo de ventas.
             merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
-            # Limpia los campos de contacto para que no muestren 'None' sino un campo vacío.
             merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
             merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
             
@@ -288,7 +274,7 @@ if check_password():
     else:
         merged_sales_clients = pd.DataFrame()
         num_oportunidades = 0
-    # ### FIN: BLOQUE DE CÁLCULO CORREGIDO ###
+    # ### FIN: BLOQUE DE CÁLCULO CON FILTRO DE FECHA EXACTA ###
 
 
     # 4. Mostrar el Dashboard de 3 Columnas
@@ -303,7 +289,8 @@ if check_password():
 
     with col3:
         st.metric("🤝 Oportunidades de Conexión", f"{num_oportunidades} clientes")
-        st.markdown("Clientes clave que usaron nuestros mejores productos. ¡Es hora de reconectar!")
+        st.markdown(f"Clientes a contactar de las ventas del día: **{target_date.strftime('%Y-%m-%d')}**")
+
 
     st.markdown("---")
     
@@ -314,14 +301,13 @@ if check_password():
 
     # Módulo de Seguimiento Post-Venta ahora está dentro de un expander
     with st.expander("📞 Ver Clientes para Seguimiento Post-Venta", expanded=True):
-        st.info("Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX hace exactamente 4 días.")
+        st.info(f"Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX exactamente el día **{target_date.strftime('%Y-%m-%d')}**.")
 
         if merged_sales_clients.empty:
-            st.warning("No se encontraron compras de productos clave hace exactamente 4 días o no se cargaron los datos de clientes.")
+            st.warning(f"No se encontraron compras de productos clave en la fecha objetivo ({target_date.strftime('%Y-%m-%d')}).")
         else:
             st.success(f"Se han identificado **{num_oportunidades}** clientes únicos. Edita su contacto si es necesario y selecciónalos para contactar.")
 
-            # El DataFrame ya está limpio y con los nombres correctos, listo para ser mostrado
             merged_sales_clients['Seleccionar'] = False
             cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
             actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
@@ -332,7 +318,7 @@ if check_password():
                 merged_sales_clients[actual_cols_to_display],
                 hide_index=True, key="sales_selector",
                 disabled=disabled_cols,
-                column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
+                column_config={"fecha_venta": st.column_config.DateColumn("Fecha de Compra", format="YYYY-MM-DD")}
             )
             
             selected_clients = edited_df[edited_df['Seleccionar']]
