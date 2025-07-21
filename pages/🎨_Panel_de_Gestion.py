@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.6 (Implementación de Dashboard Visual Inspirador)
+# Versión 1.7 (Corrección para Visualización de Nombre de Cliente)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -240,6 +240,7 @@ if check_password():
         birthday_clients = pd.DataFrame()
         num_cumpleaneros = 0
 
+    # ### INICIO: BLOQUE DE CÁLCULO CORREGIDO ###
     # Cálculo de Oportunidades de Conexión
     if not sales_df.empty and not client_df.empty:
         four_days_ago = datetime.now(pytz.timezone('America/Bogota')) - timedelta(days=4)
@@ -255,6 +256,14 @@ if check_password():
             filtered_sales['nombre_norm'] = filtered_sales['nombre_cliente']
             
             merged_sales_clients = pd.merge(filtered_sales, client_df, on='nombre_norm', how='left')
+            
+            # --- LÍNEAS DE CORRECCIÓN AÑADIDAS ---
+            # Si 'Razón Social / Nombre Natural' quedó nulo tras el cruce, usa el nombre del archivo de ventas.
+            merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
+            # Limpia los campos de contacto para que no muestren 'None' sino un campo vacío.
+            merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
+            merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
+            
             merged_sales_clients.drop_duplicates(subset=['nombre_norm'], keep='first', inplace=True)
             num_oportunidades = len(merged_sales_clients)
         else:
@@ -263,6 +272,8 @@ if check_password():
     else:
         merged_sales_clients = pd.DataFrame()
         num_oportunidades = 0
+    # ### FIN: BLOQUE DE CÁLCULO CORREGIDO ###
+
 
     # 4. Mostrar el Dashboard de 3 Columnas
     col1, col2, col3 = st.columns(3)
@@ -294,6 +305,7 @@ if check_password():
         else:
             st.success(f"Se han identificado **{num_oportunidades}** clientes únicos. Edita su contacto si es necesario y selecciónalos para contactar.")
 
+            # El DataFrame ya está limpio y con los nombres correctos, listo para ser mostrado
             merged_sales_clients['Seleccionar'] = False
             cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
             actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
