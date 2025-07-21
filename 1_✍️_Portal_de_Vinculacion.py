@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 17.0 (Ajuste de Zona Horaria a Colombia - COT)
-# Fecha: 13 de Julio de 2025
+# Versión 18.0 (Multi-Página con Datos de Fidelización)
+# Fecha: 21 de Julio de 2025
 # =================================================================================================
 
 import streamlit as st
@@ -14,7 +14,7 @@ import tempfile
 import os
 import numpy as np
 import random
-import pytz # <-- LIBRERÍA NUEVA PARA ZONAS HORARIAS
+import pytz 
 
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -49,6 +49,10 @@ st.markdown(f"""
         color: white; font-weight: bold; transition: all 0.3s;
     }}
     .stButton>button:hover {{ background-color: {FERREINOX_DARK_BLUE}; }}
+    /* Ocultar la barra de navegación de Streamlit para esta página */
+    div[data-testid="stSidebarNav"] {{
+        display: none;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -142,17 +146,16 @@ class PDFGeneratorPlatypus:
                 firma_img.save(firma_path, format="PNG")
             firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
             if self.data.get('client_type') == 'juridica':
-                 nombre_firmante, id_firmante = self.data.get('rep_legal', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
+                nombre_firmante, id_firmante = self.data.get('rep_legal', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
             else:
-                 nombre_firmante, id_firmante = self.data.get('nombre_natural', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
+                nombre_firmante, id_firmante = self.data.get('nombre_natural', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
             
-            # Se usa el timestamp con la hora de Colombia pasado en el diccionario de datos
             fecha_firma = self.data.get('timestamp', 'No disponible')
             
             firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
                 <b>Identificación:</b> {id_firmante}<br/>
                 <b>Fecha de Firma:</b> {fecha_firma}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v17.0 (Verificado)"""
+                <b>Consentimiento Vía:</b> Portal Web v18.0 (Verificado)"""
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
             self.story.append(table_firma)
@@ -273,11 +276,10 @@ elif st.session_state.verification_code_sent:
             with st.spinner("Código correcto. Finalizando proceso... ⏳"):
                 form_data = st.session_state.form_data_cache
                 
-                # --- AJUSTE DE HORA LOCAL DE COLOMBIA ---
                 colombia_tz = pytz.timezone('America/Bogota')
                 now_colombia = datetime.now(colombia_tz)
                 timestamp = now_colombia.strftime("%Y-%m-%d %H:%M:%S")
-                form_data['timestamp'] = timestamp # Se añade al dict para el PDF
+                form_data['timestamp'] = timestamp
 
                 entity_id_for_doc = form_data.get('nit', form_data.get('cedula_natural'))
                 doc_id = f"FER-{now_colombia.strftime('%Y%m%d%H%M%S')}-{entity_id_for_doc}"
@@ -288,14 +290,31 @@ elif st.session_state.verification_code_sent:
                     
                     try:
                         if form_data['client_type'] == 'juridica':
-                            log_row = [timestamp, doc_id, form_data['razon_social'], form_data['nit'], form_data['rep_legal'], form_data['correo'], form_data['ciudad'], f"{form_data['telefono']} / {form_data['celular']}", "Persona Jurídica", "Verificado y Enviado", st.session_state.generated_code]
-                        else:
-                            log_row = [timestamp, doc_id, form_data['nombre_natural'], form_data['cedula_natural'], form_data['nombre_natural'], form_data['correo'], "", form_data['telefono'], "Persona Natural", "Verificado y Enviado", st.session_state.generated_code]
+                            log_row = [
+                                timestamp, doc_id, form_data['razon_social'], form_data['nit'], 
+                                form_data['rep_legal'], form_data['correo'], form_data['ciudad'], 
+                                f"{form_data['telefono']} / {form_data['celular']}", "Persona Jurídica", 
+                                "Verificado y Enviado", st.session_state.generated_code,
+                                # --- NUEVOS CAMPOS JURÍDICA ---
+                                form_data['nombre_compras'], form_data['email_compras'], form_data['celular_compras'],
+                                form_data['nombre_cartera'], form_data['email_cartera'], form_data['celular_cartera'],
+                                "" # Campo vacío para fecha_nacimiento
+                            ]
+                        else: # Persona Natural
+                            log_row = [
+                                timestamp, doc_id, form_data['nombre_natural'], form_data['cedula_natural'], 
+                                form_data['nombre_natural'], form_data['correo'], "", 
+                                form_data['telefono'], "Persona Natural", 
+                                "Verificado y Enviado", st.session_state.generated_code,
+                                # --- NUEVOS CAMPOS NATURAL ---
+                                "", "", "", "", "", "", # Campos vacíos para los de jurídica
+                                form_data['fecha_nacimiento'].strftime('%Y-%m-%d') if form_data.get('fecha_nacimiento') else ""
+                            ]
                         worksheet.append_row(log_row, value_input_option='USER_ENTERED')
                     except Exception as sheet_error:
                         st.error("❌ ¡ERROR CRÍTICO AL GUARDAR EN GOOGLE SHEETS!")
                         st.warning("Su formulario FUE PROCESADO, pero NO PUDO SER REGISTRADO en nuestra base de datos. Por favor, contacte a soporte.")
-                        st.warning("Asegúrese que la hoja de cálculo tiene 11 columnas y que el email de servicio tiene permisos de 'Editor'.")
+                        st.warning("Asegúrese de que la hoja de cálculo tiene 18 columnas en el orden correcto.")
                         st.error(f"Detalle técnico: {sheet_error}")
 
                     file_name = f"Autorizacion_{st.session_state.final_razon_social.replace(' ', '_')}_{entity_id_for_doc}.pdf"
@@ -321,6 +340,7 @@ elif st.session_state.verification_code_sent:
 
 elif not st.session_state.terms_accepted:
     st.header("📜 Términos, Condiciones y Autorizaciones")
+    st.markdown("Bienvenido al portal de vinculación de Ferreinox S.A.S. BIC. A continuación, encontrará los términos y condiciones para el tratamiento de sus datos. Este proceso es un requisito para iniciar o continuar nuestra relación comercial.")
     with st.expander("Haga clic aquí para leer los Términos Completos"):
         st.subheader("Autorización para Tratamiento de Datos Personales")
         st.markdown(get_texto_tratamiento_datos("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]"), unsafe_allow_html=True)
@@ -345,19 +365,63 @@ else:
         st.button("‹ Volver a Selección de Tipo", on_click=reset_to_selection)
         with st.form(key="form_juridica"):
             st.header("📝 Formulario: Persona Jurídica")
-            col1, col2 = st.columns(2); col3, col4, col5 = st.columns(3)
-            with col1: razon_social, nit, direccion, telefono = st.text_input("Razón Social*"), st.text_input("NIT*"), st.text_input("Dirección*"), st.text_input("Teléfono Fijo")
-            with col2: nombre_comercial, ciudad, correo, celular = st.text_input("Nombre Comercial*"), st.text_input("Ciudad*"), st.text_input("Correo*"), st.text_input("Celular")
-            with col3: rep_legal = st.text_input("Nombre Rep. Legal*")
-            with col4: cedula_rep_legal = st.text_input("C.C. Rep. Legal*")
-            with col5: tipo_id_rep, lugar_exp_id_rep = st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_r"), st.text_input("Lugar Exp. ID*", key="lex_r")
+            col1, col2 = st.columns(2)
+            with col1:
+                razon_social = st.text_input("Razón Social*")
+                nit = st.text_input("NIT*")
+                direccion = st.text_input("Dirección*")
+                telefono = st.text_input("Teléfono Fijo")
+            with col2:
+                nombre_comercial = st.text_input("Nombre Comercial*")
+                ciudad = st.text_input("Ciudad*")
+                correo = st.text_input("Correo para Notificaciones*")
+                celular = st.text_input("Celular")
+            
+            st.markdown("---")
+            st.subheader("Datos del Representante Legal")
+            col3, col4, col5 = st.columns(3)
+            with col3:
+                rep_legal = st.text_input("Nombre Rep. Legal*")
+            with col4:
+                cedula_rep_legal = st.text_input("C.C. Rep. Legal*")
+            with col5:
+                tipo_id_rep = st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_r")
+                lugar_exp_id_rep = st.text_input("Lugar Exp. ID*", key="lex_r")
+            
+            # --- BLOQUE NUEVO PARA CONTACTOS ADICIONALES ---
+            with st.expander("👤 Contactos Adicionales (Opcional - Para programa de fidelización)"):
+                st.info("Ayúdanos a tener una comunicación más fluida y a incluirte en nuestro programa 'Más Allá del Color'.")
+                col_compras, col_cartera = st.columns(2)
+                with col_compras:
+                    st.write("**Contacto de Compras**")
+                    nombre_compras = st.text_input("Nombre Encargado Compras")
+                    email_compras = st.text_input("Email Compras")
+                    celular_compras = st.text_input("Celular Compras")
+                with col_cartera:
+                    st.write("**Contacto de Cartera**")
+                    nombre_cartera = st.text_input("Nombre Encargado Cartera")
+                    email_cartera = st.text_input("Email Cartera")
+                    celular_cartera = st.text_input("Celular Cartera")
+            # --- FIN DEL BLOQUE NUEVO ---
+
             st.subheader("✍️ Firma Digital de Aceptación")
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_j")
+            
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
                 if not all([razon_social, nit, correo, rep_legal, cedula_rep_legal]) or canvas_result.image_data is None:
                     st.warning("⚠️ Campos con * y la firma son obligatorios.")
                 else:
-                    form_data_to_process = {'client_type': 'juridica', 'razon_social': razon_social, 'nombre_comercial': nombre_comercial, 'nit': nit, 'direccion': direccion, 'ciudad': ciudad, 'telefono': telefono, 'celular': celular, 'correo': correo, 'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id_rep, 'lugar_exp_id': lugar_exp_id_rep, 'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')}
+                    form_data_to_process = {
+                        'client_type': 'juridica', 'razon_social': razon_social, 
+                        'nombre_comercial': nombre_comercial, 'nit': nit, 'direccion': direccion, 
+                        'ciudad': ciudad, 'telefono': telefono, 'celular': celular, 'correo': correo, 
+                        'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id_rep, 
+                        'lugar_exp_id': lugar_exp_id_rep, 
+                        'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
+                        # --- Añadiendo nuevos campos al diccionario ---
+                        'nombre_compras': nombre_compras, 'email_compras': email_compras, 'celular_compras': celular_compras,
+                        'nombre_cartera': nombre_cartera, 'email_cartera': email_cartera, 'celular_cartera': celular_cartera
+                    }
                     st.session_state.final_razon_social = razon_social
     
     elif st.session_state.client_type == 'natural':
@@ -365,15 +429,33 @@ else:
         with st.form(key="form_natural"):
             st.header("📝 Formulario: Persona Natural")
             col1, col2 = st.columns(2)
-            with col1: nombre_natural, cedula_natural, direccion_natural = st.text_input("Nombre Completo*"), st.text_input("C.C.*"), st.text_input("Dirección*")
-            with col2: correo_natural, telefono_natural, tipo_id_nat, lugar_exp_id_nat = st.text_input("Correo*"), st.text_input("Teléfono*"), st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_n"), st.text_input("Lugar Exp. ID*", key="lex_n")
+            with col1:
+                nombre_natural = st.text_input("Nombre Completo*")
+                cedula_natural = st.text_input("C.C.*")
+                direccion_natural = st.text_input("Dirección*")
+                telefono_natural = st.text_input("Teléfono / Celular*")
+            with col2:
+                correo_natural = st.text_input("Correo Electrónico*")
+                tipo_id_nat = st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_n")
+                lugar_exp_id_nat = st.text_input("Lugar Exp. ID*", key="lex_n")
+                # --- CAMPO NUEVO FECHA DE NACIMIENTO ---
+                fecha_nacimiento = st.date_input("Fecha de Nacimiento*", min_value=datetime(1930, 1, 1), max_value=datetime.now(), value=None)
+
             st.subheader("✍️ Firma Digital de Aceptación")
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_n")
+            
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                if not all([nombre_natural, cedula_natural, correo_natural, telefono_natural]) or canvas_result.image_data is None:
+                if not all([nombre_natural, cedula_natural, correo_natural, telefono_natural, fecha_nacimiento]) or canvas_result.image_data is None:
                     st.warning("⚠️ Campos con * y la firma son obligatorios.")
                 else:
-                    form_data_to_process = {'client_type': 'natural', 'nombre_natural': nombre_natural, 'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat, 'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural, 'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')}
+                    form_data_to_process = {
+                        'client_type': 'natural', 'nombre_natural': nombre_natural, 
+                        'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat, 
+                        'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural, 
+                        'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
+                        # --- Añadiendo nuevo campo al diccionario ---
+                        'fecha_nacimiento': fecha_nacimiento
+                    }
                     st.session_state.final_razon_social = nombre_natural
 
     if form_data_to_process:
@@ -382,10 +464,10 @@ else:
             code = str(random.randint(100000, 999999))
             st.session_state.generated_code = code
             email_body = f"""<h3>Su Código de Verificación para Ferreinox</h3>
-                         <p>Hola,</p>
-                         <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
-                         <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
-                         <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>"""
+                            <p>Hola,</p>
+                            <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
+                            <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
+                            <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>"""
             try:
                 send_email(form_data_to_process['correo'], "Su Código de Verificación - Ferreinox", email_body)
                 st.session_state.verification_code_sent = True
