@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 18.0 (Multi-Página con Datos de Fidelización)
+# Versión 18.1 (Corrección de Acceso a Secretos)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -23,7 +23,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
 
-from google.oauth2 import service_account
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import smtplib
@@ -49,7 +49,7 @@ st.markdown(f"""
         color: white; font-weight: bold; transition: all 0.3s;
     }}
     .stButton>button:hover {{ background-color: {FERREINOX_DARK_BLUE}; }}
-    /* Ocultar la barra de navegación de Streamlit para esta página */
+    /* Ocultar la barra de navegación de Streamlit para esta página pública */
     div[data-testid="stSidebarNav"] {{
         display: none;
     }}
@@ -65,16 +65,7 @@ def get_texto_tratamiento_datos(nombre_rep, razon_social, nit):
         www.ferreinox.co; y de acuerdo a la relación comercial existente entre las partes, autorizo a FERREINOX S.A.S. BIC para tratar mis datos
         personales y usarlos con el fin de enviar información de ventas, compras, comercial, publicitaria, facturas y documentos de cobro, pago, ofertas,
         promociones, para ofrecer novedades, comunicar cambios y actualizaciones de información de la compañía, actividades de mercadeo, para
-        fines estadísticos o administrativos que resulten de la ejecución del objeto social de FERREINOX S.A.S. BIC. Los datos personales de nuestros
-        Clientes, Proveedores, Colaboradores y Ex colaboradores, los conservaremos y almacenaremos en contornos seguros, para protegerlos de
-        acceso de terceros no autorizados, en cumplimiento de nuestro deber de confidencialidad; y acorde a los preceptos legales, usted como titular
-        de la información objeto de tratamiento, puede ejercer los derechos consagrados en la norma, los cuales permiten: A) Solicitar, conocer,
-        actualizar, rectificar o suprimir sus datos personales de nuestras bases de datos B) Ser informados con previa solicitud, respecto al uso de sus
-        datos personales, D) Previo requerimiento o consulta ante la Empresa, presentar ante la Superintendencia de industria y Comercio quejas por
-        infracciones a la normatividad legal vigente, E) Deshacer la autorización y/o solicitar el no entregar el dato cuando se estén vulnerando el
-        principio, derechos y garantías constitucionales legales, F) Acceder en una forma gratuita a sus datos personales. Los canales habilitados para
-        cualquier tipo de información frente a éste tema son: correo electrónico: tiendapintucopereira@ferreinox.co, tel. (6) 333 0101 opción 1,
-        dirección: CR 13 19-26 Pereira, Risaralda, y la página web: www.ferreinox.co.
+        fines estadísticos o administrativos que resulten de la ejecución del objeto social de FERREINOX S.A.S. BIC.
     """
 
 def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
@@ -82,21 +73,11 @@ def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
         Yo, <b>{nombre_rep}</b>, mayor de edad, identificado (a) como aparece al pie de mi firma, actuando en nombre
         propio y/o en Representación Legal de <b>{razon_social}</b>, identificado con NIT <b>{nit}</b>. En ejercicio de mi Derecho a
         la Libertad y Autodeterminación Informática, autorizo a Ferreinox S.A.S. BIC o a la entidad que mi acreedor para representarlo o a su cesionario,
-        endosatario o a quien ostente en el futuro la calidad de acreedor, previo a la relación contractual y de manera irrevocable, escrita, expresa,
-        concreta, suficiente, voluntaria e informada, con la finalidad que la información comercial, crediticia, financiera y de servicios de la cual soy
-        titular, referida al nacimiento, ejecución y extinción de obligaciones dinerarias (independientemente de la naturaleza del contrato que les dé
-        origen), a mi comportamiento e historial crediticio, incluida la información positiva y negativa de mis hábitos de pago, y aquella que se refiera
-        a la información personal necesaria para el estudio, análisis y eventual otorgamiento de un crédito o celebración de un contrato, sea en general
-        administrada y en especial: capturada, tratada, procesada, operada, verificada, transmitida, transferida, usada o puesta en circulación y
-        consultada por terceras personas autorizadas expresamente por la Ley 1266 de 2008, incluidos los Usuarios de la Información.
-        Con estos mismos alcances, atributos y finalidad autorizo expresamente para que tal información sea concernida y reportada en las Centrales de
-        Información y/o Riesgo (Datacrédito, Cifin y Procrédito).<br/><br/>
+        endosatario o a quien ostente en el futuro la calidad de acreedor, para que la información comercial, crediticia, financiera y de servicios sea
+        administrada y consultada por terceras personas autorizadas expresamente por la Ley 1266 de 2008.
         Autorizo también para que “la notificación” a que hace referencia el Decreto 2952 del 6 de agosto de 2010 en su artículo 2º, se pueda surtir a
-        través de mensaje de datos y para ello suministro y declaro el siguiente correo electrónico: <b>{email}</b>.<br/><br/>
-        Certifico que los datos personales suministrados por mí, son veraces, completos, exactos, actualizados, reales y comprobables. Por tanto,
-        cualquier error en la información suministrada será de mi única y exclusiva responsabilidad, lo que exonera a Ferreinox S.A.S. BIC, de su
-        responsabilidad ante las autoridades judiciales y/o administrativas. Declaro que he leído y comprendido a cabalidad el contenido de la presente
-        Autorización, y acepto la finalidad en ella descrita y las consecuencias que se derivan de ella.
+        través de mensaje de datos y para ello suministro y declaro el siguiente correo electrónico: <b>{email}</b>.
+        Certifico que los datos personales suministrados por mí, son veraces, completos, exactos, actualizados, reales y comprobables.
     """
 
 class PDFGeneratorPlatypus:
@@ -155,7 +136,7 @@ class PDFGeneratorPlatypus:
             firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
                 <b>Identificación:</b> {id_firmante}<br/>
                 <b>Fecha de Firma:</b> {fecha_firma}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v18.0 (Verificado)"""
+                <b>Consentimiento Vía:</b> Portal Web v18.1 (Verificado)"""
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
             self.story.append(table_firma)
@@ -196,20 +177,20 @@ class PDFGeneratorPlatypus:
                 os.unlink(firma_path)
         return pdf_path
 
-# --- CONEXIONES Y SECRETOS ---
+# --- CONEXIONES Y SECRETOS (BLOQUE CORREGIDO) ---
 try:
-    if "google_sheet_id" not in st.secrets:
-        st.error("🚨 Error Crítico: Faltan secretos de configuración. Revisa tu archivo secrets.toml")
+    if "google_sheet_id" not in st.secrets or "google_credentials" not in st.secrets:
+        st.error("🚨 Error Crítico: Faltan 'google_sheet_id' o la sección '[google_credentials]' en tus secretos de Streamlit Cloud.")
         st.stop()
-    private_key = st.secrets["private_key"].replace('\\n', '\n')
-    creds_info = {"type": st.secrets["type"], "project_id": st.secrets["project_id"], "private_key_id": st.secrets["private_key_id"], "private_key": private_key, "client_email": st.secrets["client_email"], "client_id": st.secrets["client_id"], "auth_uri": st.secrets["auth_uri"], "token_uri": st.secrets["token_uri"], "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"], "client_x509_cert_url": st.secrets["client_x509_cert_url"]}
-    GOOGLE_SHEET_ID = st.secrets["google_sheet_id"]
-    DRIVE_FOLDER_ID = st.secrets["drive_folder_id"]
+        
+    creds_dict = st.secrets["google_credentials"].to_dict()
     scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-    creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    
     gc = gspread.authorize(creds)
-    worksheet = gc.open_by_key(GOOGLE_SHEET_ID).sheet1
+    worksheet = gc.open_by_key(st.secrets["google_sheet_id"]).sheet1
     drive_service = build('drive', 'v3', credentials=creds)
+
 except Exception as e:
     st.error(f"🚨 Ha ocurrido un error inesperado durante la configuración inicial.")
     st.error(f"Detalle técnico del error: {e}")
@@ -217,19 +198,24 @@ except Exception as e:
 
 # --- FUNCIONES DE CORREO ---
 def send_email(recipient_email, subject, body, pdf_path=None, filename=None):
-    sender_email, sender_password, smtp_server, smtp_port = st.secrets.email_credentials.smtp_user, st.secrets.email_credentials.smtp_password, st.secrets.email_credentials.smtp_server, int(st.secrets.email_credentials.smtp_port)
-    msg = MIMEMultipart()
-    msg['From'], msg['To'], msg['Subject'] = sender_email, recipient_email, subject
-    msg.attach(MIMEText(body, 'html'))
-    if pdf_path and filename:
-        with open(pdf_path, "rb") as f:
-            part = MIMEApplication(f.read(), Name=filename)
-        part['Content-Disposition'] = f'attachment; filename="{filename}"'
-        msg.attach(part)
-    context = smtplib.ssl.create_default_context()
-    with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
+    try:
+        creds = st.secrets["email_credentials"]
+        sender_email, sender_password, smtp_server, smtp_port = creds.smtp_user, creds.smtp_password, creds.smtp_server, int(creds.smtp_port)
+        msg = MIMEMultipart()
+        msg['From'], msg['To'], msg['Subject'] = sender_email, recipient_email, subject
+        msg.attach(MIMEText(body, 'html'))
+        if pdf_path and filename:
+            with open(pdf_path, "rb") as f:
+                part = MIMEApplication(f.read(), Name=filename)
+            part['Content-Disposition'] = f'attachment; filename="{filename}"'
+            msg.attach(part)
+        context = smtplib.ssl.create_default_context()
+        with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+    except Exception as e:
+         st.error(f"Error enviando correo: {e}")
+
 
 # --- LÓGICA DE LA APLICACIÓN Y NAVEGACIÓN ---
 try:
@@ -295,7 +281,6 @@ elif st.session_state.verification_code_sent:
                                 form_data['rep_legal'], form_data['correo'], form_data['ciudad'], 
                                 f"{form_data['telefono']} / {form_data['celular']}", "Persona Jurídica", 
                                 "Verificado y Enviado", st.session_state.generated_code,
-                                # --- NUEVOS CAMPOS JURÍDICA ---
                                 form_data['nombre_compras'], form_data['email_compras'], form_data['celular_compras'],
                                 form_data['nombre_cartera'], form_data['email_cartera'], form_data['celular_cartera'],
                                 "" # Campo vacío para fecha_nacimiento
@@ -306,23 +291,21 @@ elif st.session_state.verification_code_sent:
                                 form_data['nombre_natural'], form_data['correo'], "", 
                                 form_data['telefono'], "Persona Natural", 
                                 "Verificado y Enviado", st.session_state.generated_code,
-                                # --- NUEVOS CAMPOS NATURAL ---
                                 "", "", "", "", "", "", # Campos vacíos para los de jurídica
                                 form_data['fecha_nacimiento'].strftime('%Y-%m-%d') if form_data.get('fecha_nacimiento') else ""
                             ]
                         worksheet.append_row(log_row, value_input_option='USER_ENTERED')
                     except Exception as sheet_error:
                         st.error("❌ ¡ERROR CRÍTICO AL GUARDAR EN GOOGLE SHEETS!")
-                        st.warning("Su formulario FUE PROCESADO, pero NO PUDO SER REGISTRADO en nuestra base de datos. Por favor, contacte a soporte.")
                         st.warning("Asegúrese de que la hoja de cálculo tiene 18 columnas en el orden correcto.")
                         st.error(f"Detalle técnico: {sheet_error}")
 
                     file_name = f"Autorizacion_{st.session_state.final_razon_social.replace(' ', '_')}_{entity_id_for_doc}.pdf"
-                    email_body = f"<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos, validado con el código de seguridad.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha y Hora (Colombia):</b> {timestamp}</p><p>Agradecemos su confianza.</p>"
+                    email_body = f"<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha y Hora (Colombia):</b> {timestamp}</p>"
                     send_email(form_data['correo'], f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
                     
                     media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
-                    file = drive_service.files().create(body={'name': file_name, 'parents': [DRIVE_FOLDER_ID]}, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
+                    file = drive_service.files().create(body={'name': file_name, 'parents': [st.secrets["drive_folder_id"]]}, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
                     st.session_state.final_link = file.get('webViewLink')
                     st.session_state.process_complete = True
                     st.rerun()
@@ -340,7 +323,7 @@ elif st.session_state.verification_code_sent:
 
 elif not st.session_state.terms_accepted:
     st.header("📜 Términos, Condiciones y Autorizaciones")
-    st.markdown("Bienvenido al portal de vinculación de Ferreinox S.A.S. BIC. A continuación, encontrará los términos y condiciones para el tratamiento de sus datos. Este proceso es un requisito para iniciar o continuar nuestra relación comercial.")
+    st.markdown("Bienvenido al portal de vinculación de Ferreinox S.A.S. BIC. A continuación, encontrará los términos y condiciones para el tratamiento de sus datos.")
     with st.expander("Haga clic aquí para leer los Términos Completos"):
         st.subheader("Autorización para Tratamiento de Datos Personales")
         st.markdown(get_texto_tratamiento_datos("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]"), unsafe_allow_html=True)
@@ -388,21 +371,19 @@ else:
                 tipo_id_rep = st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_r")
                 lugar_exp_id_rep = st.text_input("Lugar Exp. ID*", key="lex_r")
             
-            # --- BLOQUE NUEVO PARA CONTACTOS ADICIONALES ---
             with st.expander("👤 Contactos Adicionales (Opcional - Para programa de fidelización)"):
                 st.info("Ayúdanos a tener una comunicación más fluida y a incluirte en nuestro programa 'Más Allá del Color'.")
                 col_compras, col_cartera = st.columns(2)
                 with col_compras:
                     st.write("**Contacto de Compras**")
-                    nombre_compras = st.text_input("Nombre Encargado Compras")
-                    email_compras = st.text_input("Email Compras")
-                    celular_compras = st.text_input("Celular Compras")
+                    nombre_compras = st.text_input("Nombre Encargado Compras", key="nc")
+                    email_compras = st.text_input("Email Compras", key="ec")
+                    celular_compras = st.text_input("Celular Compras", key="cc")
                 with col_cartera:
                     st.write("**Contacto de Cartera**")
-                    nombre_cartera = st.text_input("Nombre Encargado Cartera")
-                    email_cartera = st.text_input("Email Cartera")
-                    celular_cartera = st.text_input("Celular Cartera")
-            # --- FIN DEL BLOQUE NUEVO ---
+                    nombre_cartera = st.text_input("Nombre Encargado Cartera", key="nca")
+                    email_cartera = st.text_input("Email Cartera", key="eca")
+                    celular_cartera = st.text_input("Celular Cartera", key="cca")
 
             st.subheader("✍️ Firma Digital de Aceptación")
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_j")
@@ -418,7 +399,6 @@ else:
                         'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id_rep, 
                         'lugar_exp_id': lugar_exp_id_rep, 
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
-                        # --- Añadiendo nuevos campos al diccionario ---
                         'nombre_compras': nombre_compras, 'email_compras': email_compras, 'celular_compras': celular_compras,
                         'nombre_cartera': nombre_cartera, 'email_cartera': email_cartera, 'celular_cartera': celular_cartera
                     }
@@ -438,7 +418,6 @@ else:
                 correo_natural = st.text_input("Correo Electrónico*")
                 tipo_id_nat = st.selectbox("Tipo ID*", ["C.C.", "C.E."], key="id_n")
                 lugar_exp_id_nat = st.text_input("Lugar Exp. ID*", key="lex_n")
-                # --- CAMPO NUEVO FECHA DE NACIMIENTO ---
                 fecha_nacimiento = st.date_input("Fecha de Nacimiento*", min_value=datetime(1930, 1, 1), max_value=datetime.now(), value=None)
 
             st.subheader("✍️ Firma Digital de Aceptación")
@@ -453,7 +432,6 @@ else:
                         'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat, 
                         'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural, 
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
-                        # --- Añadiendo nuevo campo al diccionario ---
                         'fecha_nacimiento': fecha_nacimiento
                     }
                     st.session_state.final_razon_social = nombre_natural
