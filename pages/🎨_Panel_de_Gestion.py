@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.1 (Corrección de Acceso a Secretos)
+# Versión 1.2 (Autenticación Dropbox con Refresh Token)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -55,12 +55,17 @@ def connect_to_gsheets():
 
 @st.cache_resource
 def connect_to_dropbox():
-    """Conecta con Dropbox usando el token de acceso de los secretos."""
+    """Conecta con Dropbox usando el refresh token de los secretos."""
     try:
-        dbx = dropbox.Dropbox(st.secrets["dropbox_access_token"])
+        creds = st.secrets["dropbox_credentials"]
+        dbx = dropbox.Dropbox(
+            oauth2_refresh_token=creds["refresh_token"],
+            app_key=creds["app_key"],
+            app_secret=creds["app_secret"]
+        )
         return dbx
     except Exception as e:
-        st.error(f"Error conectando a Dropbox: {e}")
+        st.error(f"Error conectando a Dropbox con refresh token: {e}")
         return None
 
 @st.cache_data(ttl=600)
@@ -100,14 +105,12 @@ def load_sales_data(_dbx):
 # =================================================================================================
 
 def send_email(recipient_email, subject, body):
-    """Función genérica para enviar correos electrónicos."""
     try:
         creds = st.secrets["email_credentials"]
         sender_email, sender_password, smtp_server, smtp_port = creds.smtp_user, creds.smtp_password, creds.smtp_server, int(creds.smtp_port)
         msg = MIMEMultipart()
         msg['From'], msg['To'], msg['Subject'] = sender_email, recipient_email, subject
         msg.attach(MIMEText(body, 'html'))
-        
         context = smtplib.ssl.create_default_context()
         with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
             server.login(sender_email, sender_password)
@@ -118,7 +121,6 @@ def send_email(recipient_email, subject, body):
         return False
 
 def get_whatsapp_link(phone, message):
-    """Genera un link 'click-to-chat' de WhatsApp."""
     cleaned_phone = ''.join(filter(str.isdigit, str(phone)))
     if cleaned_phone:
         if not cleaned_phone.startswith('57'):
@@ -131,7 +133,6 @@ def get_whatsapp_link(phone, message):
 # =================================================================================================
 
 def check_password():
-    """Muestra un prompt de contraseña y retorna True si es correcta."""
     def password_entered():
         if st.session_state["password"] == st.secrets["admin_password"]:
             st.session_state["password_correct"] = True
@@ -149,7 +150,7 @@ def check_password():
     else:
         return True
 
-# --- INICIO DEL PANEL DE GESTIÓN (protegido por contraseña)---
+# --- INICIO DEL PANEL DE GESTIÓN ---
 if check_password():
     st.title("🎨 Panel de Gestión: Más Allá del Color")
     st.markdown("---")
@@ -193,7 +194,6 @@ if check_password():
                     for index, row in selected_clients.iterrows():
                         client_id = row['id_cliente']
                         client_name = row['nombre_cliente']
-                        
                         contact_info = client_df[client_df['NIT / Cédula'].astype(str) == str(client_id)]
                         
                         if not contact_info.empty:
