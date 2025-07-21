@@ -16,8 +16,9 @@ from urllib.parse import quote
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import io # Import the io module
+import io
 import unicodedata # Necesario para normalizar texto, útil para comparar nombres de columnas
+# re ya no es estrictamente necesario para la división, pero lo mantenemos por si acaso
 
 # --- Configuración de la Página ---
 st.set_page_config(page_title="Gestión | Más Allá del Color", page_icon="🎨", layout="wide")
@@ -89,12 +90,11 @@ def load_client_data(_gc):
         st.error(f"Error cargando datos de clientes desde Google Sheet: {e}")
         return pd.DataFrame()
 
-# Función de normalización de texto (copiada del script de Resumen Mensual)
+# Función de normalización de texto
 def normalizar_texto(texto):
     if not isinstance(texto, str): return texto
     try:
         texto_sin_tildes = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
-        # Reemplazar doble espacio por uno simple, luego normalizar un solo espacio
         return texto_sin_tildes.upper().replace('-', ' ').replace('_', ' ').strip().replace('  ', ' ')
     except (TypeError, AttributeError): return texto
 
@@ -104,6 +104,7 @@ def load_sales_data(_dbx):
     Descarga y carga el archivo de ventas desde Dropbox,
     manejando los nombres de las columnas explícitamente y
     convirtiendo 'fecha_venta' a datetime con timezone.
+    Esta función está adaptada para las columnas que se indican que están separadas.
     """
     if _dbx is None: return pd.DataFrame()
     try:
@@ -112,41 +113,74 @@ def load_sales_data(_dbx):
         contenido_csv = res.content.decode('latin1')
 
         # Definir los nombres de columna esperados para el archivo ventas_detalle.csv
-        # ESTO ES CRÍTICO: DEBEN COINCIDIR CON EL ORDEN DE LAS COLUMNAS EN TU CSV DE VENTAS
-        # He tomado como referencia las columnas de 'ventas' en el APP_CONFIG de tu segundo script
+        # BASADO EN LA ÚLTIMA DESCRIPCIÓN PROPORCIONADA. ¡ESTO ES CRÍTICO!
         column_names_ventas = [
-            'anio', 'mes', 'fecha_venta', 'Serie', 'TipoDocumento', 'codigo_vendedor',
-            'nomvendedor', 'id_cliente', 'nombre_cliente', 'codigo_articulo',
-            'nombre_articulo', 'categoria_producto', 'linea_producto', 'marca_producto',
-            'valor_venta', 'unidades_vendidas', 'costo_unitario', 'super_categoria'
+            'anio',
+            'mes',
+            'fecha_venta_str', # Usaremos esto para construir 'fecha_venta'
+            'Serie',
+            'TipoDocumento',
+            'codigo_vendedor',
+            'nomvendedor',
+            'id_cliente',
+            'nombre_cliente',
+            'codigo_articulo',
+            'nombre_articulo',
+            'categoria_producto', # La columna 'PN7B0136179147_KORAZA'
+            'unidades_vendidas',
+            'costo_unitario',
+            'valor_venta',
+            'linea_producto',     # La columna '2' en tu ejemplo, podría ser línea o marca pequeña
+            'marca_producto',     # La columna '280910' en tu ejemplo, podría ser marca o código de referencia
+            'super_categoria'     # La columna 'Pintuco'
         ]
 
         # Leer el CSV sin encabezado y asignar las columnas manualmente
         df = pd.read_csv(io.StringIO(contenido_csv), sep='|', header=None,
                          names=column_names_ventas, engine='python', on_bad_lines='warn')
 
-        # Normalizar algunas columnas para asegurar consistencia
-        if 'id_cliente' in df.columns:
-            df['id_cliente'] = df['id_cliente'].astype(str)
-        if 'nomvendedor' in df.columns:
-            df['nomvendedor'] = df['nomvendedor'].apply(normalizar_texto)
-        if 'TipoDocumento' in df.columns:
-            df['TipoDocumento'] = df['TipoDocumento'].apply(normalizar_texto)
-        
-        # Convertir 'fecha_venta' a datetime y hacerla timezone-aware
-        if 'fecha_venta' in df.columns:
-            df['fecha_venta'] = pd.to_datetime(df['fecha_venta'], dayfirst=True, errors='coerce')
+        # --- Procesamiento de columnas ---
+
+        # 1. Convertir 'fecha_venta_str' a datetime y hacerla timezone-aware
+        if 'fecha_venta_str' in df.columns:
+            # Primero convertir a datetime, errores como 'coerce' convertirán valores inválidos a NaT
+            df['fecha_venta'] = pd.to_datetime(df['fecha_venta_str'], dayfirst=True, errors='coerce')
             # Localizar a la zona horaria de Bogotá (GMT-5)
-            # Esto asignará el timezone a las fechas
             df['fecha_venta'] = df['fecha_venta'].dt.tz_localize('America/Bogota', errors='coerce')
+        else:
+            df['fecha_venta'] = pd.NaT # Si la columna no existe, se crea como Not a Time
+
+        # 2. Asegurar tipos de datos correctos y normalizar texto
+        # Columnas que deben ser strings para id's y nombres
+        str_cols = ['codigo_vendedor', 'id_cliente', 'Serie', 'codigo_articulo']
+        for col in str_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str)
+
+        # Normalizar columnas de texto que serán usadas para comparación o display
+        text_normalize_cols = ['nomvendedor', 'nombre_cliente', 'TipoDocumento', 'nombre_articulo', 'categoria_producto', 'super_categoria']
+        for col in text_normalize_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(normalizar_texto)
+
+        # Asegurar que todas las columnas numéricas sean numéricas
+        numeric_cols_to_check = ['anio', 'mes', 'unidades_vendidas', 'costo_unitario', 'valor_venta', 'linea_producto', 'marca_producto']
+        for col in numeric_cols_to_check:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
         
+        # Eliminar la columna raw de fecha si ya se procesó
+        df.drop(columns=['fecha_venta_str'], inplace=True, errors='ignore')
+
         return df
     except dropbox.exceptions.ApiError as e:
         st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
-        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Retorna un DF vacío con cols mínimas
+        # Retorna un DF vacío con las columnas mínimas que la UI esperaría para no fallar
+        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
     except Exception as e:
         st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|) y las columnas esperadas.")
-        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Retorna un DF vacío con cols mínimas
+        # Retorna un DF vacío con las columnas que la interfaz de usuario esperaría tener para no fallar inmediatamente
+        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
 
 # =================================================================================================
 # 2. FUNCIONES AUXILIARES
@@ -237,8 +271,9 @@ if check_password():
     if not sales_df.empty and 'id_cliente' in sales_df.columns:
         sales_df['id_cliente'] = sales_df['id_cliente'].astype(str)
     else:
-        st.warning("La columna 'id_cliente' no se encontró en el archivo de ventas o el DataFrame está vacío. Se procederá con un DataFrame de ventas limitado.")
-        sales_df = pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente']) # Asegura un DF mínimo
+        st.warning("La columna 'id_cliente' no se encontró en el archivo de ventas o el DataFrame está vacío. Se procederá con un DataFrame de ventas limitado para evitar errores.")
+        # Asegurarse de que sales_df tenga al menos las columnas necesarias para el resto del script
+        sales_df = pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
 
     if not client_df.empty:
         if 'NIT / Cédula' in client_df.columns:
@@ -256,13 +291,18 @@ if check_password():
         # Verificar si sales_df está vacío o le faltan columnas críticas
         if sales_df.empty or 'fecha_venta' not in sales_df.columns or 'id_cliente' not in sales_df.columns:
             st.warning("No se pudieron cargar los datos de ventas correctamente o faltan columnas esenciales ('fecha_venta', 'id_cliente'). Revisa la conexión con Dropbox y el archivo.")
+            # Si no hay datos de ventas, no hay nada que mostrar en esta sección
+            st.info("No hay datos de ventas recientes para procesar en esta sección.")
         else:
-            # La columna 'fecha_venta' ya es timezone-aware desde load_sales_data
-            # 'four_days_ago' también es timezone-aware. ¡Ahora la comparación funcionará!
+            # 'fecha_venta' ya es timezone-aware desde load_sales_data
             bogota_tz = pytz.timezone('America/Bogota')
             current_time_bogota = datetime.now(bogota_tz)
             four_days_ago = current_time_bogota - timedelta(days=4)
-            recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
+            
+            # Asegurarse de que 'fecha_venta' en sales_df esté limpia de NaT antes de filtrar
+            sales_df_filtered_dates = sales_df.dropna(subset=['fecha_venta'])
+
+            recent_sales = sales_df_filtered_dates[sales_df_filtered_dates['fecha_venta'] >= four_days_ago].copy()
             
             st.info(f"Se encontraron **{len(recent_sales)}** ventas en los últimos 4 días. Selecciónalas para contactar.")
 
@@ -325,7 +365,8 @@ if check_password():
                         with col1: st.write(f"**{client_name}** (ID: {client_id})")
                         with col2:
                             if email: # Solo muestra el botón si hay un email registrado
-                                if st.button(f"📧 Enviar Email", key=f"email_sale_{client_id}", use_container_width=True):
+                                # Usar un key único que incluya el índice o un id único para el botón
+                                if st.button(f"📧 Enviar Email", key=f"email_sale_{client_id}_{index}", use_container_width=True):
                                     subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
                                     if send_email(email, subject, message):
                                         st.toast(f"Email enviado a {client_name}!", icon="✅")
@@ -356,10 +397,6 @@ if check_password():
             # Convierte la columna de fecha de nacimiento a formato datetime
             if 'Fecha_Nacimiento' in client_df.columns:
                 client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
-                
-                # Opcional: Si quieres que Fecha_Nacimiento sea timezone-aware para futuras comparaciones,
-                # aunque para día y mes no es estrictamente necesario, puede ayudar a la consistencia.
-                # client_df['Fecha_Nacimiento'] = client_df['Fecha_Nacimiento'].dt.tz_localize('America/Bogota', errors='coerce')
                 
                 # Filtra los clientes que cumplen años hoy
                 birthday_clients = client_df[
