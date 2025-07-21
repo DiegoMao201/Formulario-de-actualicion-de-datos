@@ -92,8 +92,8 @@ def load_sales_data(_dbx):
     try:
         file_path = '/data/ventas_detalle.csv'
         _, res = _dbx.files_download(path=file_path)
-        # Decode the bytes content to string and wrap in StringIO
-        df = pd.read_csv(io.StringIO(res.content.decode('utf-8')))
+        # Decode the bytes content to string using 'latin1' and wrap in StringIO
+        df = pd.read_csv(io.StringIO(res.content.decode('latin1')))
         return df
     except dropbox.exceptions.ApiError as e:
         st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
