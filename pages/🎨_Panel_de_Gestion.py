@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.2 (Autenticación Dropbox con Refresh Token)
+# Versión 1.3 (Lectura de CSV y Mapeo por Nombre CORREGIDOS)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -17,8 +17,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import io
-import unicodedata # Necesario para normalizar texto, útil para comparar nombres de columnas
-# re ya no es estrictamente necesario para la división, pero lo mantenemos por si acaso
+import unicodedata
 
 # --- Configuración de la Página ---
 st.set_page_config(page_title="Gestión | Más Allá del Color", page_icon="🎨", layout="wide")
@@ -76,13 +75,11 @@ def load_client_data(_gc):
     """Carga los datos de los clientes desde Google Sheets a un DataFrame de Pandas."""
     if _gc is None: return pd.DataFrame()
     try:
-        # Asegúrate de que el sheet_id en secrets apunte al correcto para clientes
         worksheet = _gc.open_by_key(st.secrets["google_sheet_id"]).sheet1
         records = worksheet.get_all_records()
         df = pd.DataFrame(records)
         required_cols = ['NIT / Cédula', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular', 'Fecha_Nacimiento']
         for col in required_cols:
-            # Asegura que las columnas existan, inicializándolas vacías si no están presentes
             if col not in df.columns:
                 df[col] = ''
         return df
@@ -98,13 +95,12 @@ def normalizar_texto(texto):
         return texto_sin_tildes.upper().replace('-', ' ').replace('_', ' ').strip().replace('  ', ' ')
     except (TypeError, AttributeError): return texto
 
+# ### INICIO DE LA SECCIÓN CORREGIDA ###
 @st.cache_data(ttl=300)
 def load_sales_data(_dbx):
     """
-    Descarga y carga el archivo de ventas desde Dropbox,
-    manejando los nombres de las columnas explícitamente y
-    convirtiendo 'fecha_venta' a datetime con timezone.
-    Esta función está adaptada para las columnas que se indican que están separadas.
+    Descarga y carga el archivo de ventas desde Dropbox.
+    Esta versión está corregida y alineada con tu script de Resumen Mensual.
     """
     if _dbx is None: return pd.DataFrame()
     try:
@@ -112,75 +108,47 @@ def load_sales_data(_dbx):
         _, res = _dbx.files_download(path=file_path)
         contenido_csv = res.content.decode('latin1')
 
-        # Definir los nombres de columna esperados para el archivo ventas_detalle.csv
-        # BASADO EN LA ÚLTIMA DESCRIPCIÓN PROPORCIONADA. ¡ESTO ES CRÍTICO!
+        # ### CORRECCIÓN 1: Usar la lista de columnas EXACTA de tu script funcional ###
         column_names_ventas = [
-            'anio',
-            'mes',
-            'fecha_venta_str', # Usaremos esto para construir 'fecha_venta'
-            'Serie',
-            'TipoDocumento',
-            'codigo_vendedor',
-            'nomvendedor',
-            'id_cliente',
-            'nombre_cliente',
-            'codigo_articulo',
-            'nombre_articulo',
-            'categoria_producto', # La columna 'PN7B0136179147_KORAZA'
-            'unidades_vendidas',
-            'costo_unitario',
-            'valor_venta',
-            'linea_producto',     # La columna '2' en tu ejemplo, podría ser línea o marca pequeña
-            'marca_producto',     # La columna '280910' en tu ejemplo, podría ser marca o código de referencia
-            'super_categoria'     # La columna 'Pintuco'
+            'anio', 'mes', 'fecha_venta', 'Serie', 'TipoDocumento',
+            'codigo_vendedor', 'nomvendedor', 'id_cliente', 'nombre_cliente',
+            'codigo_articulo', 'nombre_articulo', 'categoria_producto',
+            'unidades_vendidas', 'costo_unitario', 'valor_venta', 'linea_producto',
+            'marca_producto', 'super_categoria'
         ]
 
-        # Leer el CSV sin encabezado y asignar las columnas manualmente
         df = pd.read_csv(io.StringIO(contenido_csv), sep='|', header=None,
-                         names=column_names_ventas, engine='python', on_bad_lines='warn')
+                         names=column_names_ventas, engine='python', on_bad_lines='warn', quoting=3)
 
         # --- Procesamiento de columnas ---
 
-        # 1. Convertir 'fecha_venta_str' a datetime y hacerla timezone-aware
-        if 'fecha_venta_str' in df.columns:
-            # Primero convertir a datetime, errores como 'coerce' convertirán valores inválidos a NaT
-            df['fecha_venta'] = pd.to_datetime(df['fecha_venta_str'], dayfirst=True, errors='coerce')
-            # Localizar a la zona horaria de Bogotá (GMT-5)
-            df['fecha_venta'] = df['fecha_venta'].dt.tz_localize('America/Bogota', errors='coerce')
-        else:
-            df['fecha_venta'] = pd.NaT # Si la columna no existe, se crea como Not a Time
+        # 1. Convertir 'fecha_venta' a datetime de forma segura
+        df['fecha_venta'] = pd.to_datetime(df['fecha_venta'], dayfirst=True, errors='coerce')
+        df.dropna(subset=['fecha_venta'], inplace=True)
 
-        # 2. Asegurar tipos de datos correctos y normalizar texto
-        # Columnas que deben ser strings para id's y nombres
-        str_cols = ['codigo_vendedor', 'id_cliente', 'Serie', 'codigo_articulo']
-        for col in str_cols:
-            if col in df.columns:
-                df[col] = df[col].astype(str)
+        # 2. Localiza a la zona horaria de Bogotá DESPUÉS de limpiar los valores nulos.
+        df['fecha_venta'] = df['fecha_venta'].dt.tz_localize('America/Bogota')
 
-        # Normalizar columnas de texto que serán usadas para comparación o display
-        text_normalize_cols = ['nomvendedor', 'nombre_cliente', 'TipoDocumento', 'nombre_articulo', 'categoria_producto', 'super_categoria']
-        for col in text_normalize_cols:
-            if col in df.columns:
-                df[col] = df[col].apply(normalizar_texto)
-
-        # Asegurar que todas las columnas numéricas sean numéricas
-        numeric_cols_to_check = ['anio', 'mes', 'unidades_vendidas', 'costo_unitario', 'valor_venta', 'linea_producto', 'marca_producto']
-        for col in numeric_cols_to_check:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+        # 3. Normalizar el nombre del cliente para usarlo en el cruce de datos
+        if 'nombre_cliente' in df.columns:
+            df['nombre_cliente'] = df['nombre_cliente'].apply(normalizar_texto)
         
-        # Eliminar la columna raw de fecha si ya se procesó
-        df.drop(columns=['fecha_venta_str'], inplace=True, errors='ignore')
+        # 4. Asegurar tipos de datos correctos
+        if 'id_cliente' in df.columns:
+            df['id_cliente'] = df['id_cliente'].astype(str)
+        
+        if 'valor_venta' in df.columns:
+            df['valor_venta'] = pd.to_numeric(df['valor_venta'], errors='coerce')
 
         return df
     except dropbox.exceptions.ApiError as e:
         st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
-        # Retorna un DF vacío con las columnas mínimas que la UI esperaría para no fallar
-        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
+        return pd.DataFrame()
     except Exception as e:
-        st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|) y las columnas esperadas.")
-        # Retorna un DF vacío con las columnas que la interfaz de usuario esperaría tener para no fallar inmediatamente
-        return pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
+        st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|).")
+        return pd.DataFrame()
+# ### FIN DE LA SECCIÓN CORREGIDA ###
+
 
 # =================================================================================================
 # 2. FUNCIONES AUXILIARES
@@ -188,23 +156,23 @@ def load_sales_data(_dbx):
 
 def send_email(recipient_email, subject, body):
     """Envía un correo electrónico a un destinatario."""
-    if not recipient_email: # Verificar si el email es una cadena vacía o None
+    if not recipient_email:
         st.warning("No se puede enviar el email: el destinatario no tiene un correo válido.")
         return False
     try:
         creds = st.secrets["email_credentials"]
-        sender_email = creds.smtp_user
-        sender_password = creds.smtp_password
-        smtp_server = creds.smtp_server
-        smtp_port = int(creds.smtp_port)
+        sender_email = creds["smtp_user"]
+        sender_password = creds["smtp_password"]
+        smtp_server = creds["smtp_server"]
+        smtp_port = int(creds["smtp_port"])
 
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"Ferreinox S.A.S. BIC <{sender_email}>"
         msg['To'] = recipient_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html')) # Envía el cuerpo como HTML
+        msg.attach(MIMEText(body, 'html'))
 
-        context = smtplib.ssl.create_default_context() # Contexto SSL para seguridad
+        context = smtplib.ssl.create_default_context()
         with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
@@ -215,14 +183,12 @@ def send_email(recipient_email, subject, body):
 
 def get_whatsapp_link(phone, message):
     """Genera un enlace de WhatsApp con un mensaje predefinido."""
-    # Limpia el número de teléfono, quitando todo lo que no sea dígito
     cleaned_phone = ''.join(filter(str.isdigit, str(phone)))
     if cleaned_phone:
-        # Si el número no empieza con '57' (código de Colombia), lo añade
         if not cleaned_phone.startswith('57'):
             cleaned_phone = '57' + cleaned_phone
         return f"https://wa.me/{cleaned_phone}?text={quote(message)}"
-    return "" # Retorna cadena vacía si el teléfono no es válido
+    return ""
 
 # =================================================================================================
 # 3. LÓGICA DE LA APLICACIÓN
@@ -231,21 +197,17 @@ def get_whatsapp_link(phone, message):
 def check_password():
     """Verifica la contraseña de acceso al panel."""
     def password_entered():
-        """Función callback para verificar la contraseña."""
         if st.session_state.get("password") == st.secrets["admin_password"]:
             st.session_state["password_correct"] = True
-            # Eliminar la contraseña de la sesión para seguridad
             if "password" in st.session_state:
                 del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Primera vez que se carga la página o contraseña no introducida
         st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        # Contraseña incorrecta, mostrar error y pedir de nuevo
         st.error("😕 Contraseña incorrecta.")
         st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
         return False
@@ -257,7 +219,6 @@ if check_password():
     st.title("🎨 Panel de Gestión: Más Allá del Color")
     st.markdown("---")
 
-    # Establece las conexiones y carga los datos una sola vez por ejecución
     gc = connect_to_gsheets()
     dbx = connect_to_dropbox()
     
@@ -265,86 +226,58 @@ if check_password():
         client_df = load_client_data(gc)
         sales_df = load_sales_data(dbx)
 
-    # --- PRE-PROCESAMIENTO DE DATOS PARA COMBINAR ---
-    # Asegurar que las columnas clave para la combinación sean de tipo string para evitar errores
-    # Añadimos una verificación para asegurarnos de que la columna exista antes de intentar convertirla
-    if not sales_df.empty and 'id_cliente' in sales_df.columns:
-        sales_df['id_cliente'] = sales_df['id_cliente'].astype(str)
-    else:
-        st.warning("La columna 'id_cliente' no se encontró en el archivo de ventas o el DataFrame está vacío. Se procederá con un DataFrame de ventas limitado para evitar errores.")
-        # Asegurarse de que sales_df tenga al menos las columnas necesarias para el resto del script
-        sales_df = pd.DataFrame(columns=['id_cliente', 'fecha_venta', 'nombre_cliente', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'])
-
-    if not client_df.empty:
-        if 'NIT / Cédula' in client_df.columns:
-            client_df['NIT / Cédula'] = client_df['NIT / Cédula'].astype(str)
-        # Asegurarse de que las columnas de contacto y nombre no sean nulas en client_df ANTES de usarlas
-        client_df['Correo'] = client_df['Correo'].fillna('')
-        client_df['Teléfono / Celular'] = client_df['Teléfono / Celular'].fillna('')
-        client_df['Razón Social / Nombre Natural'] = client_df['Razón Social / Nombre Natural'].fillna('')
-
-
     # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
     with st.container(border=True):
         st.header("📞 Seguimiento Post-Venta")
 
-        # Verificar si sales_df está vacío o le faltan columnas críticas
-        if sales_df.empty or 'fecha_venta' not in sales_df.columns or 'id_cliente' not in sales_df.columns:
-            st.warning("No se pudieron cargar los datos de ventas correctamente o faltan columnas esenciales ('fecha_venta', 'id_cliente'). Revisa la conexión con Dropbox y el archivo.")
-            # Si no hay datos de ventas, no hay nada que mostrar en esta sección
-            st.info("No hay datos de ventas recientes para procesar en esta sección.")
+        if sales_df.empty or 'fecha_venta' not in sales_df.columns:
+            st.warning("No se pudieron cargar los datos de ventas correctamente o el archivo está vacío.")
         else:
-            # 'fecha_venta' ya es timezone-aware desde load_sales_data
             bogota_tz = pytz.timezone('America/Bogota')
             current_time_bogota = datetime.now(bogota_tz)
             four_days_ago = current_time_bogota - timedelta(days=4)
             
-            # Asegurarse de que 'fecha_venta' en sales_df esté limpia de NaT antes de filtrar
-            sales_df_filtered_dates = sales_df.dropna(subset=['fecha_venta'])
-
-            recent_sales = sales_df_filtered_dates[sales_df_filtered_dates['fecha_venta'] >= four_days_ago].copy()
+            recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
             
-            st.info(f"Se encontraron **{len(recent_sales)}** ventas en los últimos 4 días. Selecciónalas para contactar.")
+            st.info(f"Se encontraron **{len(recent_sales)}** transacciones de venta en los últimos 4 días.")
 
-            if not recent_sales.empty:
-                # Combina la información de ventas con la de clientes para obtener los datos de contacto
-                # Se usa 'left' para mantener todas las ventas recientes y añadir info de cliente si existe.
+            if not recent_sales.empty and not client_df.empty:
+                
+                # ### CORRECCIÓN 2: Preparar ambos DataFrames para unir por NOMBRE NORMALIZADO ###
+                # 1. Normalizar la columna de nombre en la base de datos de clientes (Google Sheets)
+                client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
+                
+                # 2. La columna 'nombre_cliente' en recent_sales ya fue normalizada en la carga
+                recent_sales['nombre_norm'] = recent_sales['nombre_cliente']
+
+                # 3. Unir (Merge) los dos DataFrames usando la columna normalizada
                 merged_sales_clients = pd.merge(
                     recent_sales,
-                    client_df[['NIT / Cédula', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
-                    left_on='id_cliente',
-                    right_on='NIT / Cédula',
+                    client_df[['nombre_norm', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
+                    on='nombre_norm',
                     how='left'
                 )
 
-                # Rellena los valores NaN en las columnas de contacto que provienen de la unión
-                # Es fundamental que estos sean strings vacíos para las comprobaciones posteriores.
+                # Rellenar datos faltantes y limpiar
                 merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
                 merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
-                # Si 'Razón Social / Nombre Natural' se volvió NaN por la unión (porque no estaba en Sheets),
-                # usa 'nombre_cliente' de sales_df como respaldo.
-                # Asegúrate que 'nombre_cliente' exista en merged_sales_clients antes de usarlo.
-                if 'nombre_cliente' in merged_sales_clients.columns:
-                    merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
-                else:
-                    merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna('Cliente Desconocido')
+                merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
+                
+                merged_sales_clients.sort_values(by='fecha_venta', ascending=False, inplace=True)
+                merged_sales_clients.drop_duplicates(subset=['nombre_norm'], keep='first', inplace=True)
 
+                st.success(f"De estas, **{len(merged_sales_clients)}** clientes únicos con compras recientes fueron identificados. Selecciónalos para contactar.")
 
                 merged_sales_clients['Seleccionar'] = False
-                # Columnas a mostrar en el editor de datos, ahora incluyendo las de contacto mapeadas
-                cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'id_cliente', 'fecha_venta', 'Correo', 'Teléfono / Celular']
-                # Filtra las columnas que realmente existen en el DataFrame
+                cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
                 actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
-
-                # Asegúrate de que las columnas deshabilitadas existan
-                disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'id_cliente', 'fecha_venta', 'Correo', 'Teléfono / Celular'] if col in merged_sales_clients.columns]
+                disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular'] if col in merged_sales_clients.columns]
 
                 edited_df = st.data_editor(
                     merged_sales_clients[actual_cols_to_display],
                     hide_index=True, key="sales_selector",
-                    # Deshabilitar todas las columnas excepto 'Seleccionar'
                     disabled=disabled_cols,
-                    column_config={"fecha_venta": st.column_config.DateColumn(format="YYYY-MM-DD")}
+                    column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
                 )
                 
                 selected_clients = edited_df[edited_df['Seleccionar']]
@@ -354,32 +287,30 @@ if check_password():
                     st.subheader("Clientes Seleccionados para Contactar:")
                     
                     for index, row in selected_clients.iterrows():
-                        client_id = row.get('id_cliente', 'N/A') # Usar .get para evitar errores si la columna no existe
-                        # Ya usamos 'Razón Social / Nombre Natural' como la fuente principal
                         client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
                         email = row.get('Correo', '')
                         phone = row.get('Teléfono / Celular', '')
                         message = f"¡Hola, {client_name}! 👋 Soy de Ferreinox. Te escribo para saludarte y saber cómo te fue con el color y los productos que elegiste. ¡Esperamos que todo haya quedado espectacular! 🎨 Recuerda que en nosotros tienes un aliado. Con Pintuco, tu satisfacción es nuestra garantía."
                         
                         col1, col2, col3 = st.columns([2, 1, 1])
-                        with col1: st.write(f"**{client_name}** (ID: {client_id})")
+                        with col1: st.write(f"**{client_name}**")
                         with col2:
-                            if email: # Solo muestra el botón si hay un email registrado
-                                # Usar un key único que incluya el índice o un id único para el botón
-                                if st.button(f"📧 Enviar Email", key=f"email_sale_{client_id}_{index}", use_container_width=True):
+                            if email:
+                                if st.button(f"📧 Enviar Email", key=f"email_sale_{index}", use_container_width=True):
                                     subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
                                     if send_email(email, subject, message):
                                         st.toast(f"Email enviado a {client_name}!", icon="✅")
                             else:
-                                st.info("Sin email 🚫") # Mensaje si no hay email
+                                st.info("Sin email 🚫")
                         with col3:
-                            if phone: # Solo muestra el botón si hay un teléfono registrado
+                            if phone:
                                 st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
                             else:
-                                st.info("Sin teléfono 🚫") # Mensaje si no hay teléfono
+                                st.info("Sin teléfono 🚫")
+                else:
+                    st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
             else:
-                st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
-
+                 st.info("No hay ventas recientes o no se cargaron los datos de clientes para procesar.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -390,22 +321,19 @@ if check_password():
         if client_df.empty:
             st.warning("No se pudieron cargar los datos de clientes.")
         else:
-            # Configura la zona horaria para la fecha actual
             bogota_tz = pytz.timezone('America/Bogota')
             today = datetime.now(bogota_tz)
             
-            # Convierte la columna de fecha de nacimiento a formato datetime
             if 'Fecha_Nacimiento' in client_df.columns:
                 client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
                 
-                # Filtra los clientes que cumplen años hoy
                 birthday_clients = client_df[
                     (client_df['Fecha_Nacimiento'].dt.month == today.month) &
                     (client_df['Fecha_Nacimiento'].dt.day == today.day)
-                ].copy() # .copy() para evitar SettingWithCopyWarning
+                ].copy()
             else:
-                st.warning("La columna 'Fecha_Nacimiento' no se encontró en el DataFrame de clientes. No se mostrarán cumpleaños.")
-                birthday_clients = pd.DataFrame() # No hay fecha de nacimiento, no hay cumpleaños para mostrar
+                st.warning("La columna 'Fecha_Nacimiento' no se encontró en el DataFrame de clientes.")
+                birthday_clients = pd.DataFrame()
             
             if birthday_clients.empty:
                 st.info("No hay clientes cumpliendo años hoy.")
@@ -413,14 +341,13 @@ if check_password():
                 st.success(f"¡Hoy es el cumpleaños de **{len(birthday_clients)}** cliente(s)! Selecciónalos para felicitar.")
                 birthday_clients['Seleccionar'] = False
                 cols_bday_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
-                # Filtra las columnas que realmente existen
                 actual_cols_bday_display = [col for col in cols_bday_display if col in birthday_clients.columns]
                 disabled_bday_cols = [col for col in ['Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'] if col in birthday_clients.columns]
 
                 edited_bday_df = st.data_editor(
                     birthday_clients[actual_cols_bday_display],
                     hide_index=True, key="bday_selector",
-                    disabled=disabled_bday_cols # Campos no editables
+                    disabled=disabled_bday_cols
                 )
 
                 selected_bday_clients = edited_bday_df[edited_bday_df['Seleccionar']]
@@ -438,16 +365,15 @@ if check_password():
                         col1, col2, col3 = st.columns([2, 1, 1])
                         with col1: st.write(f"**{client_name}**")
                         with col2:
-                            if email: # Solo muestra el botón si hay un email
-                                # Usar un key único que incluya el índice o un id único para el botón
-                                if st.button(f"📧 Enviar Email", key=f"email_bday_{index}_{client_name[:5]}", use_container_width=True): 
+                            if email:
+                                if st.button(f"📧 Enviar Email", key=f"email_bday_{index}_{client_name[:5]}", use_container_width=True):
                                     subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
                                     if send_email(email, subject, message):
                                         st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
                             else:
                                 st.info("Sin email 🚫")
                         with col3:
-                            if phone: # Solo muestra el botón si hay un teléfono
+                            if phone:
                                 st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
                             else:
                                 st.info("Sin teléfono 🚫")
