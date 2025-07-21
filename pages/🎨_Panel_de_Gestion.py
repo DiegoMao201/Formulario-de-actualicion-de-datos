@@ -89,7 +89,7 @@ def load_sales_data(_dbx):
     """Descarga y carga el archivo de ventas desde Dropbox."""
     if _dbx is None: return pd.DataFrame()
     try:
-        file_path = '/data/detalle_ventas.csv'
+        file_path = '/data/ventas_detalle.csv'
         _, res = _dbx.files_download(path=file_path)
         df = pd.read_csv(res.content)
         return df
