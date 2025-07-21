@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 18.1 (Corrección de Acceso a Secretos)
+# Versión 18.2 (Corrección de Lógica de Flujo y Envío de Correo)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -136,7 +136,7 @@ class PDFGeneratorPlatypus:
             firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
                 <b>Identificación:</b> {id_firmante}<br/>
                 <b>Fecha de Firma:</b> {fecha_firma}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v18.1 (Verificado)"""
+                <b>Consentimiento Vía:</b> Portal Web v18.2 (Verificado)"""
             table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
             table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
             self.story.append(table_firma)
@@ -159,8 +159,8 @@ class PDFGeneratorPlatypus:
             table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('SPAN', (1,-1), (3,-1)), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
             self.story.append(table_basicos)
             rep_legal_name, entity_name, entity_id, entity_email = self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']
-        else:
-            datos = [[Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)], [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)], [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)], [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)], [Paragraph('Correo Electrónico:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)]]
+        else: # Persona Natural
+            datos = [[Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)], [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)], [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)], [Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)], [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)], [Paragraph('Correo Electrónico:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)]]
             table_basicos = Table(datos, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
             table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
             self.story.append(table_basicos)
@@ -179,8 +179,10 @@ class PDFGeneratorPlatypus:
 
 # --- CONEXIONES Y SECRETOS (BLOQUE CORREGIDO) ---
 try:
-    if "google_sheet_id" not in st.secrets or "google_credentials" not in st.secrets or "drive_folder_id" not in st.secrets:
-        st.error("🚨 Error Crítico: Faltan 'google_sheet_id', 'drive_folder_id' o la sección '[google_credentials]' en tus secretos de Streamlit Cloud.")
+    # --- CORRECCIÓN: Se añaden todas las claves de secretos necesarias para una validación completa al inicio ---
+    required_secrets = ["google_sheet_id", "google_credentials", "drive_folder_id", "email_credentials"]
+    if not all(secret in st.secrets for secret in required_secrets):
+        st.error("🚨 Error Crítico: Faltan una o más configuraciones en tus secretos de Streamlit. Asegúrate de tener 'google_sheet_id', 'drive_folder_id', y las secciones '[google_credentials]' y '[email_credentials]'.")
         st.stop()
         
     creds_dict = st.secrets["google_credentials"].to_dict()
@@ -199,10 +201,6 @@ except Exception as e:
 # --- FUNCIONES DE CORREO ---
 def send_email(recipient_email, subject, body, pdf_path=None, filename=None):
     try:
-        if "email_credentials" not in st.secrets:
-            st.error("🚨 Error de Configuración de Correo: La sección '[email_credentials]' no se encuentra en tus secretos de Streamlit.")
-            return False
-
         creds = st.secrets["email_credentials"]
         sender_email = creds.get("smtp_user")
         sender_password = creds.get("smtp_password")
@@ -210,11 +208,11 @@ def send_email(recipient_email, subject, body, pdf_path=None, filename=None):
         smtp_port = int(creds.get("smtp_port"))
 
         if not all([sender_email, sender_password, smtp_server, smtp_port]):
-            st.error("🚨 Error de Configuración de Correo: Faltan credenciales completas en la sección '[email_credentials]'.")
+            st.error("🚨 Error de Configuración de Correo: Faltan credenciales completas en la sección '[email_credentials]'. Verifica 'smtp_user', 'smtp_password', 'smtp_server', y 'smtp_port'.")
             return False
 
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"Ferreinox S.A.S. BIC <{sender_email}>"
         msg['To'] = recipient_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html'))
@@ -237,7 +235,7 @@ def send_email(recipient_email, subject, body, pdf_path=None, filename=None):
         return False
     except smtplib.SMTPException as e:
         st.error(f"❌ Error al conectar o enviar correo SMTP: {e}")
-        st.error("Verifica el 'smtp_server' y 'smtp_port' en tus secretos. Podría ser un problema de red o configuración del servidor de correo.")
+        st.error("Verifica el 'smtp_server' y 'smtp_port' en tus secretos. Podría ser un problema de red, un firewall o una configuración incorrecta del servidor de correo.")
         return False
     except Exception as e:
         st.error(f"❌ Un error inesperado ocurrió al intentar enviar el correo: {e}")
@@ -266,10 +264,11 @@ init_session_state()
 def reset_to_terms(): st.session_state.update(terms_accepted=False, client_type=None, verification_code_sent=False)
 def reset_to_selection(): st.session_state.update(client_type=None, verification_code_sent=False)
 def full_reset():
-    for key in list(st.session_state.keys()):
+    keys_to_delete = list(st.session_state.keys())
+    for key in keys_to_delete:
         del st.session_state[key]
     init_session_state()
-    st.rerun() # Ensure rerun after full reset
+    st.rerun()
 
 # --- Flujo de la aplicación ---
 
@@ -303,44 +302,23 @@ elif st.session_state.verification_code_sent:
                     pdf_file_path = pdf_gen.generate()
                     
                     try:
-                        # Ensure 18 columns consistently
                         if form_data['client_type'] == 'juridica':
                             log_row = [
-                                timestamp,                      # 1
-                                doc_id,                         # 2
-                                form_data['razon_social'],      # 3
-                                form_data['nit'],               # 4
-                                form_data['rep_legal'],         # 5
-                                form_data['correo'],            # 6
-                                form_data['ciudad'],            # 7
-                                f"{form_data['telefono']} / {form_data['celular']}", # 8
-                                "Persona Jurídica",             # 9
-                                "Verificado y Enviado",         # 10
-                                st.session_state.generated_code,# 11
-                                form_data['nombre_compras'],   # 12
-                                form_data['email_compras'],    # 13
-                                form_data['celular_compras'],  # 14
-                                form_data['nombre_cartera'],   # 15
-                                form_data['email_cartera'],    # 16
-                                form_data['celular_cartera'],  # 17
-                                "" # 18 - Campo vacío para fecha_nacimiento de persona natural
+                                timestamp, doc_id, form_data.get('razon_social', ''), form_data.get('nit', ''),
+                                form_data.get('rep_legal', ''), form_data.get('correo', ''), form_data.get('ciudad', ''),
+                                f"{form_data.get('telefono', '')} / {form_data.get('celular', '')}", "Persona Jurídica",
+                                "Verificado y Enviado", st.session_state.generated_code,
+                                form_data.get('nombre_compras', ''), form_data.get('email_compras', ''), form_data.get('celular_compras', ''),
+                                form_data.get('nombre_cartera', ''), form_data.get('email_cartera', ''), form_data.get('celular_cartera', ''),
+                                "" # Campo para fecha_nacimiento
                             ]
                         else: # Persona Natural
                             log_row = [
-                                timestamp,                      # 1
-                                doc_id,                         # 2
-                                form_data['nombre_natural'],    # 3 (Usamos nombre_natural como Razón Social para consistencia)
-                                form_data['cedula_natural'],    # 4 (Usamos cédula_natural como NIT para consistencia)
-                                form_data['nombre_natural'],    # 5 (Representante legal es el mismo)
-                                form_data['correo'],            # 6
-                                form_data['ciudad'] if 'ciudad' in form_data else "", # 7 (Añadido para consistencia)
-                                form_data['telefono'],          # 8 (Teléfono/Celular)
-                                "Persona Natural",              # 9
-                                "Verificado y Enviado",         # 10
-                                st.session_state.generated_code,# 11
-                                "", "", "",                     # 12, 13, 14 - Campos vacíos para contactos de compras
-                                "", "", "",                     # 15, 16, 17 - Campos vacíos para contactos de cartera
-                                form_data['fecha_nacimiento'].strftime('%Y-%m-%d') if form_data.get('fecha_nacimiento') else "" # 18
+                                timestamp, doc_id, form_data.get('nombre_natural', ''), form_data.get('cedula_natural', ''),
+                                form_data.get('nombre_natural', ''), form_data.get('correo', ''), form_data.get('ciudad', ''),
+                                form_data.get('telefono', ''), "Persona Natural", "Verificado y Enviado",
+                                st.session_state.generated_code, "", "", "", "", "", "", # Campos de contactos vacíos
+                                form_data.get('fecha_nacimiento').strftime('%Y-%m-%d') if form_data.get('fecha_nacimiento') else ""
                             ]
                         
                         worksheet.append_row(log_row, value_input_option='USER_ENTERED')
@@ -356,14 +334,13 @@ elif st.session_state.verification_code_sent:
                     email_sent_successfully = send_email(form_data['correo'], f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
                     
                     if email_sent_successfully:
-                        # Only upload to Drive and mark process complete if email was sent
                         media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
                         file = drive_service.files().create(body={'name': file_name, 'parents': [st.secrets["drive_folder_id"]]}, media_body=media, fields='id, webViewLink', supportsAllDrives=True).execute()
                         st.session_state.final_link = file.get('webViewLink')
                         st.session_state.process_complete = True
                         st.rerun()
                     else:
-                        st.warning("El PDF fue generado y los datos se intentaron guardar, pero el correo no pudo ser enviado. Por favor, contacte a soporte.")
+                        st.warning("El PDF fue generado y los datos se guardaron, pero el correo de confirmación final no pudo ser enviado. Por favor, contacte a soporte.")
                 except Exception as e:
                     st.error(f"❌ ¡Ha ocurrido un error inesperado durante el procesamiento final del documento o subida a Drive!")
                     st.error(f"Detalle técnico: {e}")
@@ -397,7 +374,7 @@ elif st.session_state.client_type is None:
         st.button("Soy Persona Natural", on_click=lambda: st.session_state.update(client_type='natural'), use_container_width=True)
     st.button("‹ Volver a Términos y Condiciones", on_click=reset_to_terms)
 
-else:
+else: # --- Etapa de llenado de formulario ---
     form_data_to_process = None
     if st.session_state.client_type == 'juridica':
         st.button("‹ Volver a Selección de Tipo", on_click=reset_to_selection)
@@ -423,7 +400,6 @@ else:
             with col4:
                 cedula_rep_legal = st.text_input("C.C. Rep. Legal*", value=st.session_state.form_data_cache.get('cedula_rep_legal', ''))
             with col5:
-                # Set default value for selectbox
                 default_tipo_id_rep = st.session_state.form_data_cache.get('tipo_id', "C.C.")
                 tipo_id_rep = st.selectbox("Tipo ID*", ["C.C.", "C.E."], index=["C.C.", "C.E."].index(default_tipo_id_rep) if default_tipo_id_rep in ["C.C.", "C.E."] else 0, key="id_r")
                 lugar_exp_id_rep = st.text_input("Lugar Exp. ID*", value=st.session_state.form_data_cache.get('lugar_exp_id', ''), key="lex_r")
@@ -446,7 +422,7 @@ else:
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_j")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                if not all([razon_social, nit, correo, rep_legal, cedula_rep_legal, ciudad, nombre_comercial, lugar_exp_id_rep]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255): # Added check for empty canvas
+                if not all([razon_social, nit, correo, rep_legal, cedula_rep_legal, ciudad, nombre_comercial, lugar_exp_id_rep]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * son obligatorios y la firma no puede estar vacía.")
                 else:
                     form_data_to_process = {
@@ -469,45 +445,48 @@ else:
             with col1:
                 nombre_natural = st.text_input("Nombre Completo*", value=st.session_state.form_data_cache.get('nombre_natural', ''))
                 cedula_natural = st.text_input("C.C.*", value=st.session_state.form_data_cache.get('cedula_natural', ''))
-                direccion_natural = st.text_input("Dirección*", value=st.session_state.form_data_cache.get('direccion', ''))
+                direccion_natural = st.text_input("Dirección de Residencia*", value=st.session_state.form_data_cache.get('direccion', ''))
                 telefono_natural = st.text_input("Teléfono / Celular*", value=st.session_state.form_data_cache.get('telefono', ''))
             with col2:
                 correo_natural = st.text_input("Correo Electrónico*", value=st.session_state.form_data_cache.get('correo', ''))
+                # --- CORRECCIÓN: Se añade el campo Ciudad para consistencia de datos ---
+                ciudad_natural = st.text_input("Ciudad de Residencia*", value=st.session_state.form_data_cache.get('ciudad', ''))
                 default_tipo_id_nat = st.session_state.form_data_cache.get('tipo_id', "C.C.")
                 tipo_id_nat = st.selectbox("Tipo ID*", ["C.C.", "C.E."], index=["C.C.", "C.E."].index(default_tipo_id_nat) if default_tipo_id_nat in ["C.C.", "C.E."] else 0, key="id_n")
                 lugar_exp_id_nat = st.text_input("Lugar Exp. ID*", value=st.session_state.form_data_cache.get('lugar_exp_id', ''), key="lex_n")
                 
-                # Handling date_input's default value for persistent state
-                default_date = st.session_state.form_data_cache.get('fecha_nacimiento')
-                if default_date and isinstance(default_date, str):
-                    try:
-                        default_date = datetime.strptime(default_date, '%Y-%m-%d').date()
-                    except ValueError:
-                        default_date = None # Reset if invalid string
-                elif not isinstance(default_date, (datetime, type(None))): # Handles case where it might be a date object from previous run
-                     default_date = None
-                
-                fecha_nacimiento = st.date_input("Fecha de Nacimiento*", min_value=datetime(1930, 1, 1).date(), max_value=datetime.now().date(), value=default_date)
-
+            default_date = st.session_state.form_data_cache.get('fecha_nacimiento')
+            if default_date and isinstance(default_date, str):
+                try: default_date = datetime.strptime(default_date, '%Y-%m-%d').date()
+                except ValueError: default_date = None
+            elif not isinstance(default_date, (datetime, type(None))):
+                default_date = None
+            
+            fecha_nacimiento = st.date_input("Fecha de Nacimiento*", min_value=datetime(1930, 1, 1).date(), max_value=datetime.now().date(), value=default_date)
 
             st.subheader("✍️ Firma Digital de Aceptación")
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_n")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                if not all([nombre_natural, cedula_natural, correo_natural, telefono_natural, fecha_nacimiento, direccion_natural, lugar_exp_id_nat]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255): # Added check for empty canvas
+                # --- CORRECCIÓN: Se añade 'ciudad_natural' a la validación ---
+                if not all([nombre_natural, cedula_natural, correo_natural, telefono_natural, fecha_nacimiento, direccion_natural, lugar_exp_id_nat, ciudad_natural]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * y la firma son obligatorios.")
                 else:
                     form_data_to_process = {
                         'client_type': 'natural', 'nombre_natural': nombre_natural,
                         'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat,
                         'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural,
+                        # --- CORRECCIÓN: Se guarda la ciudad en el diccionario de datos ---
+                        'ciudad': ciudad_natural,
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
                         'fecha_nacimiento': fecha_nacimiento
                     }
                     st.session_state.final_razon_social = nombre_natural
 
+    # --- CORRECCIÓN 1: LÓGICA DE PROCESAMIENTO MEJORADA ---
+    # Este bloque ahora maneja correctamente el éxito y el fracaso del envío de correo.
     if form_data_to_process:
-        with st.spinner("Generando y enviando código de verificación..."):
+        with st.spinner("Generando y enviando código de verificación... Por favor, espere."):
             st.session_state.form_data_cache = form_data_to_process
             code = str(random.randint(100000, 999999))
             st.session_state.generated_code = code
@@ -525,7 +504,8 @@ else:
             
             if email_sent:
                 st.session_state.verification_code_sent = True
+                # Si el correo se envía exitosamente, se refresca la página para mostrar el campo de verificación.
                 st.rerun()
-            else:
-                # Error message already displayed by send_email function
-                pass # Do not rerun here if email failed, allow user to see error and try again
+            # Si el correo falla (email_sent es False), la función send_email() ya habrá mostrado un st.error().
+            # El programa no hace 'rerun', por lo que el usuario verá el error en la página del formulario
+            # y podrá corregir el correo o contactar a soporte sin perder los datos que ya llenó.
