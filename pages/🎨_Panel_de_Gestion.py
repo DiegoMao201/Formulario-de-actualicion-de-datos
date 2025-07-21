@@ -170,7 +170,6 @@ def check_password():
         st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
         return False
     else:
-        # Contraseña correcta
         return True
 
 # --- INICIO DEL PANEL DE GESTIÓN ---
@@ -195,7 +194,7 @@ if check_password():
         # Asegurarse de que las columnas de contacto y nombre no sean nulas en client_df ANTES de usarlas
         client_df['Correo'] = client_df['Correo'].fillna('')
         client_df['Teléfono / Celular'] = client_df['Teléfono / Celular'].fillna('')
-        client_df['Razón Social / Nombre Natural'] = client_df['Razón Social / Nombre Natural'].fillna('')
+        client_df['Razón Social / Nombre Natural'] = client_df['Razón Social / Nombre Natural'].fillna('')
 
 
     # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
@@ -227,9 +226,9 @@ if check_password():
                 # Es fundamental que estos sean strings vacíos para las comprobaciones posteriores.
                 merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
                 merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
-                # Si 'Razón Social / Nombre Natural' se volvió NaN por la unión (porque no estaba en Sheets),
-                # usa 'nombre_cliente' de sales_df como respaldo.
-                merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
+                # Si 'Razón Social / Nombre Natural' se volvió NaN por la unión (porque no estaba en Sheets),
+                # usa 'nombre_cliente' de sales_df como respaldo.
+                merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
 
 
                 merged_sales_clients['Seleccionar'] = False
@@ -252,7 +251,7 @@ if check_password():
                     for index, row in selected_clients.iterrows():
                         client_id = row['id_cliente']
                         # Ya usamos 'Razón Social / Nombre Natural' como la fuente principal
-                        client_name = row['Razón Social / Nombre Natural']
+                        client_name = row['Razón Social / Nombre Natural']
                         email = row['Correo']
                         phone = row['Teléfono / Celular']
                         message = f"¡Hola, {client_name}! 👋 Soy de Ferreinox. Te escribo para saludarte y saber cómo te fue con el color y los productos que elegiste. ¡Esperamos que todo haya quedado espectacular! 🎨 Recuerda que en nosotros tienes un aliado. Con Pintuco, tu satisfacción es nuestra garantía."
