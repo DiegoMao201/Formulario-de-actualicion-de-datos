@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.7 (Corrección para Visualización de Nombre de Cliente)
+# Versión 1.8 (Corrección para filtro de fecha exacta)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -243,8 +243,24 @@ if check_password():
     # ### INICIO: BLOQUE DE CÁLCULO CORREGIDO ###
     # Cálculo de Oportunidades de Conexión
     if not sales_df.empty and not client_df.empty:
-        four_days_ago = datetime.now(pytz.timezone('America/Bogota')) - timedelta(days=4)
-        recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
+        # --- LÓGICA DE FECHA MODIFICADA ---
+        # Define la zona horaria y obtiene la fecha de hoy al inicio del día.
+        bogota_tz = pytz.timezone('America/Bogota')
+        today_normalized = datetime.now(bogota_tz).normalize()
+
+        # Calcula la fecha exacta de hace 4 días.
+        target_date = today_normalized - timedelta(days=4)
+        
+        # Define el rango para ese día específico (desde las 00:00:00 hasta las 23:59:59).
+        start_of_target_day = target_date
+        end_of_target_day = target_date + timedelta(days=1) - timedelta(seconds=1)
+
+        # Filtra las ventas que ocurrieron EXACTAMENTE hace 4 días.
+        recent_sales = sales_df[
+            (sales_df['fecha_venta'] >= start_of_target_day) & 
+            (sales_df['fecha_venta'] <= end_of_target_day)
+        ].copy()
+        # --- FIN DE LÓGICA DE FECHA MODIFICADA ---
         
         product_keywords = ['KORAZA', 'VINILTEX', 'PINTULUX']
         filter_pattern = '|'.join(product_keywords)
@@ -298,10 +314,10 @@ if check_password():
 
     # Módulo de Seguimiento Post-Venta ahora está dentro de un expander
     with st.expander("📞 Ver Clientes para Seguimiento Post-Venta", expanded=True):
-        st.info("Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX en los últimos 4 días.")
+        st.info("Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX hace exactamente 4 días.")
 
         if merged_sales_clients.empty:
-            st.warning("No se encontraron compras de productos clave en los últimos 4 días o no se cargaron los datos de clientes.")
+            st.warning("No se encontraron compras de productos clave hace exactamente 4 días o no se cargaron los datos de clientes.")
         else:
             st.success(f"Se han identificado **{num_oportunidades}** clientes únicos. Edita su contacto si es necesario y selecciónalos para contactar.")
 
