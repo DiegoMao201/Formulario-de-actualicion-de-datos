@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.3 (Lectura de CSV y Mapeo por Nombre CORREGIDOS)
+# Versión 1.4 (Columnas de Contacto Editables)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -95,7 +95,6 @@ def normalizar_texto(texto):
         return texto_sin_tildes.upper().replace('-', ' ').replace('_', ' ').strip().replace('  ', ' ')
     except (TypeError, AttributeError): return texto
 
-# ### INICIO DE LA SECCIÓN CORREGIDA ###
 @st.cache_data(ttl=300)
 def load_sales_data(_dbx):
     """
@@ -108,7 +107,6 @@ def load_sales_data(_dbx):
         _, res = _dbx.files_download(path=file_path)
         contenido_csv = res.content.decode('latin1')
 
-        # ### CORRECCIÓN 1: Usar la lista de columnas EXACTA de tu script funcional ###
         column_names_ventas = [
             'anio', 'mes', 'fecha_venta', 'Serie', 'TipoDocumento',
             'codigo_vendedor', 'nomvendedor', 'id_cliente', 'nombre_cliente',
@@ -121,19 +119,13 @@ def load_sales_data(_dbx):
                          names=column_names_ventas, engine='python', on_bad_lines='warn', quoting=3)
 
         # --- Procesamiento de columnas ---
-
-        # 1. Convertir 'fecha_venta' a datetime de forma segura
         df['fecha_venta'] = pd.to_datetime(df['fecha_venta'], dayfirst=True, errors='coerce')
         df.dropna(subset=['fecha_venta'], inplace=True)
-
-        # 2. Localiza a la zona horaria de Bogotá DESPUÉS de limpiar los valores nulos.
         df['fecha_venta'] = df['fecha_venta'].dt.tz_localize('America/Bogota')
 
-        # 3. Normalizar el nombre del cliente para usarlo en el cruce de datos
         if 'nombre_cliente' in df.columns:
             df['nombre_cliente'] = df['nombre_cliente'].apply(normalizar_texto)
         
-        # 4. Asegurar tipos de datos correctos
         if 'id_cliente' in df.columns:
             df['id_cliente'] = df['id_cliente'].astype(str)
         
@@ -147,8 +139,6 @@ def load_sales_data(_dbx):
     except Exception as e:
         st.error(f"Error procesando el archivo de ventas: {e}. Asegúrate que el CSV tenga el formato y el separador correcto (|).")
         return pd.DataFrame()
-# ### FIN DE LA SECCIÓN CORREGIDA ###
-
 
 # =================================================================================================
 # 2. FUNCIONES AUXILIARES
@@ -243,14 +233,9 @@ if check_password():
 
             if not recent_sales.empty and not client_df.empty:
                 
-                # ### CORRECCIÓN 2: Preparar ambos DataFrames para unir por NOMBRE NORMALIZADO ###
-                # 1. Normalizar la columna de nombre en la base de datos de clientes (Google Sheets)
                 client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
-                
-                # 2. La columna 'nombre_cliente' en recent_sales ya fue normalizada en la carga
                 recent_sales['nombre_norm'] = recent_sales['nombre_cliente']
 
-                # 3. Unir (Merge) los dos DataFrames usando la columna normalizada
                 merged_sales_clients = pd.merge(
                     recent_sales,
                     client_df[['nombre_norm', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
@@ -258,7 +243,6 @@ if check_password():
                     how='left'
                 )
 
-                # Rellenar datos faltantes y limpiar
                 merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
                 merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
                 merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
@@ -271,7 +255,10 @@ if check_password():
                 merged_sales_clients['Seleccionar'] = False
                 cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
                 actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
-                disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular'] if col in merged_sales_clients.columns]
+                
+                # ### INICIO DE LA SECCIÓN CORREGIDA ###
+                # CORRECCIÓN: Se quitan 'Correo' y 'Teléfono / Celular' de la lista de deshabilitados.
+                disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta'] if col in merged_sales_clients.columns]
 
                 edited_df = st.data_editor(
                     merged_sales_clients[actual_cols_to_display],
@@ -279,6 +266,7 @@ if check_password():
                     disabled=disabled_cols,
                     column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
                 )
+                # ### FIN DE LA SECCIÓN CORREGIDA ###
                 
                 selected_clients = edited_df[edited_df['Seleccionar']]
 
