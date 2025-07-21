@@ -25,14 +25,14 @@ st.set_page_config(page_title="Gestión | Más Allá del Color", page_icon="🎨
 FERREINOX_DARK_BLUE = "#0D47A1"
 st.markdown(f"""
 <style>
-    .main {{ background-color: #F0F2F6; }}
-    .block-container {{ padding-top: 2rem; padding-bottom: 2rem; }}
-    h1, h2, h3, h4 {{ color: {FERREINOX_DARK_BLUE}; }}
-    .stButton>button {{
-        border-radius: 8px; border: 2px solid {FERREINOX_DARK_BLUE}; background-color: #1565C0;
-        color: white; font-weight: bold; transition: all 0.3s;
-    }}
-    .stButton>button:hover {{ background-color: {FERREINOX_DARK_BLUE}; }}
+    .main {{ background-color: #F0F2F6; }}
+    .block-container {{ padding-top: 2rem; padding-bottom: 2rem; }}
+    h1, h2, h3, h4 {{ color: {FERREINOX_DARK_BLUE}; }}
+    .stButton>button {{
+        border-radius: 8px; border: 2px solid {FERREINOX_DARK_BLUE}; background-color: #1565C0;
+        color: white; font-weight: bold; transition: all 0.3s;
+    }}
+    .stButton>button:hover {{ background-color: {FERREINOX_DARK_BLUE}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,225 +43,267 @@ st.markdown(f"""
 
 @st.cache_resource
 def connect_to_gsheets():
-    """Conecta con Google Sheets usando los secretos de Streamlit."""
-    try:
-        creds_dict = st.secrets["google_credentials"].to_dict()
-        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        gc = gspread.authorize(creds)
-        return gc
-    except Exception as e:
-        st.error(f"Error conectando a Google Sheets: {e}")
-        return None
+    """Conecta con Google Sheets usando los secretos de Streamlit."""
+    try:
+        creds_dict = st.secrets["google_credentials"].to_dict()
+        scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(creds)
+        return gc
+    except Exception as e:
+        st.error(f"Error conectando a Google Sheets: {e}")
+        return None
 
 @st.cache_resource
 def connect_to_dropbox():
-    """Conecta con Dropbox usando el refresh token de los secretos."""
-    try:
-        creds = st.secrets["dropbox_credentials"]
-        dbx = dropbox.Dropbox(
-            oauth2_refresh_token=creds["refresh_token"],
-            app_key=creds["app_key"],
-            app_secret=creds["app_secret"]
-        )
-        return dbx
-    except Exception as e:
-        st.error(f"Error conectando a Dropbox con refresh token: {e}")
-        return None
+    """Conecta con Dropbox usando el refresh token de los secretos."""
+    try:
+        creds = st.secrets["dropbox_credentials"]
+        dbx = dropbox.Dropbox(
+            oauth2_refresh_token=creds["refresh_token"],
+            app_key=creds["app_key"],
+            app_secret=creds["app_secret"]
+        )
+        return dbx
+    except Exception as e:
+        st.error(f"Error conectando a Dropbox con refresh token: {e}")
+        return None
 
 @st.cache_data(ttl=600)
 def load_client_data(_gc):
-    """Carga los datos de los clientes desde Google Sheets a un DataFrame de Pandas."""
-    if _gc is None: return pd.DataFrame()
-    try:
-        worksheet = _gc.open_by_key(st.secrets["google_sheet_id"]).sheet1
-        records = worksheet.get_all_records()
-        df = pd.DataFrame(records)
-        required_cols = ['NIT / Cédula', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular', 'Fecha_Nacimiento']
-        for col in required_cols:
-            if col not in df.columns: df[col] = ''
-        return df
-    except Exception as e:
-        st.error(f"Error cargando datos de clientes desde Google Sheet: {e}")
-        return pd.DataFrame()
+    """Carga los datos de los clientes desde Google Sheets a un DataFrame de Pandas."""
+    if _gc is None: return pd.DataFrame()
+    try:
+        worksheet = _gc.open_by_key(st.secrets["google_sheet_id"]).sheet1
+        records = worksheet.get_all_records()
+        df = pd.DataFrame(records)
+        required_cols = ['NIT / Cédula', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular', 'Fecha_Nacimiento']
+        for col in required_cols:
+            if col not in df.columns: df[col] = ''
+        return df
+    except Exception as e:
+        st.error(f"Error cargando datos de clientes desde Google Sheet: {e}")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=300)
 def load_sales_data(_dbx):
-    """Descarga y carga el archivo de ventas desde Dropbox."""
-    if _dbx is None: return pd.DataFrame()
-    try:
-        file_path = '/data/ventas_detalle.csv'
-        _, res = _dbx.files_download(path=file_path)
-        # Decode the bytes content to string using 'latin1' and wrap in StringIO
-        df = pd.read_csv(io.StringIO(res.content.decode('latin1')))
-        return df
-    except dropbox.exceptions.ApiError as e:
-        st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error procesando el archivo de ventas: {e}")
-        return pd.DataFrame()
+    """Descarga y carga el archivo de ventas desde Dropbox."""
+    if _dbx is None: return pd.DataFrame()
+    try:
+        file_path = '/data/ventas_detalle.csv'
+        _, res = _dbx.files_download(path=file_path)
+        # Decode the bytes content to string using 'latin1' and wrap in StringIO
+        df = pd.read_csv(io.StringIO(res.content.decode('latin1')))
+        return df
+    except dropbox.exceptions.ApiError as e:
+        st.error(f"Error: No se encontró el archivo '{file_path}' en Dropbox. Detalles: {e}")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error procesando el archivo de ventas: {e}")
+        return pd.DataFrame()
 
 # =================================================================================================
 # 2. FUNCIONES AUXILIARES
 # =================================================================================================
 
 def send_email(recipient_email, subject, body):
-    try:
-        creds = st.secrets["email_credentials"]
-        sender_email, sender_password, smtp_server, smtp_port = creds.smtp_user, creds.smtp_password, creds.smtp_server, int(creds.smtp_port)
-        msg = MIMEMultipart()
-        msg['From'], msg['To'], msg['Subject'] = sender_email, recipient_email, subject
-        msg.attach(MIMEText(body, 'html'))
-        context = smtplib.ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        st.error(f"No se pudo enviar el email a {recipient_email}. Error: {e}")
-        return False
+    try:
+        creds = st.secrets["email_credentials"]
+        sender_email, sender_password, smtp_server, smtp_port = creds.smtp_user, creds.smtp_password, creds.smtp_server, int(creds.smtp_port)
+        msg = MIMEMultipart()
+        msg['From'], msg['To'], msg['Subject'] = sender_email, recipient_email, subject
+        msg.attach(MIMEText(body, 'html'))
+        context = smtplib.ssl.create_default_context()
+        with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        st.error(f"No se pudo enviar el email a {recipient_email}. Error: {e}")
+        return False
 
 def get_whatsapp_link(phone, message):
-    cleaned_phone = ''.join(filter(str.isdigit, str(phone)))
-    if cleaned_phone:
-        if not cleaned_phone.startswith('57'):
-            cleaned_phone = '57' + cleaned_phone
-        return f"https://wa.me/{cleaned_phone}?text={quote(message)}"
-    return ""
+    cleaned_phone = ''.join(filter(str.isdigit, str(phone)))
+    if cleaned_phone:
+        # Asumimos código de país de Colombia si no está presente
+        if not cleaned_phone.startswith('57'):
+            cleaned_phone = '57' + cleaned_phone
+        return f"https://wa.me/{cleaned_phone}?text={quote(message)}"
+    return ""
 
 # =================================================================================================
 # 3. LÓGICA DE LA APLICACIÓN
 # =================================================================================================
 
 def check_password():
-    def password_entered():
-        if st.session_state["password"] == st.secrets["admin_password"]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
+    def password_entered():
+        if st.session_state["password"] == st.secrets["admin_password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
 
-    if "password_correct" not in st.session_state:
-        st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.error("😕 Contraseña incorrecta.")
-        st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
-        return False
-    else:
-        return True
+    if "password_correct" not in st.session_state:
+        st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.error("😕 Contraseña incorrecta.")
+        st.text_input("Ingresa la contraseña para acceder al panel:", type="password", on_change=password_entered, key="password")
+        return False
+    else:
+        return True
 
 # --- INICIO DEL PANEL DE GESTIÓN ---
 if check_password():
-    st.title("🎨 Panel de Gestión: Más Allá del Color")
-    st.markdown("---")
+    st.title("🎨 Panel de Gestión: Más Allá del Color")
+    st.markdown("---")
 
-    gc = connect_to_gsheets()
-    dbx = connect_to_dropbox()
-    
-    with st.spinner("Cargando datos de clientes y ventas..."):
-        client_df = load_client_data(gc)
-        sales_df = load_sales_data(dbx)
+    gc = connect_to_gsheets()
+    dbx = connect_to_dropbox()
+    
+    with st.spinner("Cargando datos de clientes y ventas..."):
+        client_df = load_client_data(gc)
+        sales_df = load_sales_data(dbx)
 
-    # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
-    with st.container(border=True):
-        st.header("📞 Seguimiento Post-Venta")
+    # --- PRE-PROCESAMIENTO DE DATOS PARA COMBINAR ---
+    # Asegurar que las columnas clave para la combinación sean de tipo string
+    if not sales_df.empty:
+        sales_df['id_cliente'] = sales_df['id_cliente'].astype(str)
+    if not client_df.empty:
+        client_df['NIT / Cédula'] = client_df['NIT / Cédula'].astype(str)
+        # Asegurarse de que las columnas de contacto no sean nulas en client_df
+        client_df['Correo'] = client_df['Correo'].fillna('')
+        client_df['Teléfono / Celular'] = client_df['Teléfono / Celular'].fillna('')
 
-        if sales_df.empty:
-            st.warning("No se pudieron cargar los datos de ventas. Revisa la conexión con Dropbox y el archivo.")
-        else:
-            sales_df['fecha_venta'] = pd.to_datetime(sales_df['fecha_venta'], dayfirst=True, errors='coerce')
-            four_days_ago = datetime.now() - timedelta(days=4)
-            recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
-            
-            st.info(f"Se encontraron {len(recent_sales)} ventas en los últimos 4 días. Selecciónalas para contactar.")
+    # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
+    with st.container(border=True):
+        st.header("📞 Seguimiento Post-Venta")
 
-            if not recent_sales.empty:
-                recent_sales['Seleccionar'] = False
-                cols_to_display = ['Seleccionar', 'nombre_cliente', 'id_cliente', 'fecha_venta']
-                edited_df = st.data_editor(
-                    recent_sales[cols_to_display],
-                    hide_index=True, key="sales_selector",
-                    disabled=['nombre_cliente', 'id_cliente', 'fecha_venta'],
-                    column_config={"fecha_venta": st.column_config.DateColumn(format="YYYY-MM-DD")}
-                )
-                
-                selected_clients = edited_df[edited_df['Seleccionar']]
+        if sales_df.empty:
+            st.warning("No se pudieron cargar los datos de ventas. Revisa la conexión con Dropbox y el archivo.")
+        else:
+            sales_df['fecha_venta'] = pd.to_datetime(sales_df['fecha_venta'], dayfirst=True, errors='coerce')
+            four_days_ago = datetime.now() - timedelta(days=4)
+            recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
+            
+            st.info(f"Se encontraron **{len(recent_sales)}** ventas en los últimos 4 días. Selecciónalas para contactar.")
 
-                if not selected_clients.empty:
-                    st.markdown("---")
-                    st.subheader("Clientes Seleccionados para Contactar:")
-                    
-                    for index, row in selected_clients.iterrows():
-                        client_id = row['id_cliente']
-                        client_name = row['nombre_cliente']
-                        contact_info = client_df[client_df['NIT / Cédula'].astype(str) == str(client_id)]
-                        
-                        if not contact_info.empty:
-                            email = contact_info.iloc[0]['Correo']
-                            phone = contact_info.iloc[0]['Teléfono / Celular']
-                            message = f"¡Hola, {client_name}! 👋 Soy de Ferreinox. Te escribo para saludarte y saber cómo te fue con el color y los productos que elegiste. ¡Esperamos que todo haya quedado espectacular! 🎨 Recuerda que en nosotros tienes un aliado. Con Pintuco, tu satisfacción es nuestra garantía."
-                            
-                            col1, col2, col3 = st.columns([2, 1, 1])
-                            with col1: st.write(f"**{client_name}**")
-                            with col2:
-                                if st.button(f"📧 Enviar Email", key=f"email_sale_{client_id}", use_container_width=True):
-                                    subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
-                                    if send_email(email, subject, message):
-                                        st.toast(f"Email enviado a {client_name}!", icon="✅")
-                            with col3:
-                                st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
-                        else:
-                            st.warning(f"No se encontró info de contacto para {client_name} (ID: {client_id}).")
+            if not recent_sales.empty:
+                # Combina la información de ventas con la de clientes para obtener los datos de contacto
+                # Se usa 'left' para mantener todas las ventas recientes y añadir info de cliente si existe.
+                merged_sales_clients = pd.merge(
+                    recent_sales,
+                    client_df[['NIT / Cédula', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
+                    left_on='id_cliente',
+                    right_on='NIT / Cédula',
+                    how='left'
+                )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+                # Rellena los valores NaN en las columnas de contacto que provienen de la unión
+                merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
+                merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
+                # Si 'Razón Social / Nombre Natural' se volvió NaN por la unión, usa 'nombre_cliente' de sales_df
+                merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
 
-    # --- MÓDULO DE CUMPLEAÑOS ---
-    with st.container(border=True):
-        st.header("🎂 Cumpleaños del Día")
 
-        if client_df.empty:
-            st.warning("No se pudieron cargar los datos de clientes.")
-        else:
-            today = datetime.now(pytz.timezone('America/Bogota'))
-            client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
-            
-            birthday_clients = client_df[
-                (client_df['Fecha_Nacimiento'].dt.month == today.month) &
-                (client_df['Fecha_Nacimiento'].dt.day == today.day)
-            ].copy()
-            
-            if birthday_clients.empty:
-                st.info("No hay clientes cumpliendo años hoy.")
-            else:
-                st.success(f"¡Hoy es el cumpleaños de {len(birthday_clients)} cliente(s)! Selecciónalos para felicitar.")
-                birthday_clients['Seleccionar'] = False
-                cols_bday_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
-                edited_bday_df = st.data_editor(
-                    birthday_clients[cols_bday_display],
-                    hide_index=True, key="bday_selector",
-                    disabled=['Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
-                )
+                merged_sales_clients['Seleccionar'] = False
+                # Columnas a mostrar en el editor de datos, ahora incluyendo las de contacto
+                cols_to_display = ['Seleccionar', 'nombre_cliente', 'id_cliente', 'fecha_venta', 'Correo', 'Teléfono / Celular']
+                edited_df = st.data_editor(
+                    merged_sales_clients[cols_to_display],
+                    hide_index=True, key="sales_selector",
+                    disabled=['nombre_cliente', 'id_cliente', 'fecha_venta', 'Correo', 'Teléfono / Celular'],
+                    column_config={"fecha_venta": st.column_config.DateColumn(format="YYYY-MM-DD")}
+                )
+                
+                selected_clients = edited_df[edited_df['Seleccionar']]
 
-                selected_bday_clients = edited_bday_df[edited_bday_df['Seleccionar']]
+                if not selected_clients.empty:
+                    st.markdown("---")
+                    st.subheader("Clientes Seleccionados para Contactar:")
+                    
+                    for index, row in selected_clients.iterrows():
+                        client_id = row['id_cliente']
+                        # Usar 'Razón Social / Nombre Natural' si está disponible, sino 'nombre_cliente' de sales_df
+                        client_name = row['Razón Social / Nombre Natural'] if row['Razón Social / Nombre Natural'] else row['nombre_cliente']
+                        email = row['Correo']
+                        phone = row['Teléfono / Celular']
+                        message = f"¡Hola, {client_name}! 👋 Soy de Ferreinox. Te escribo para saludarte y saber cómo te fue con el color y los productos que elegiste. ¡Esperamos que todo haya quedado espectacular! 🎨 Recuerda que en nosotros tienes un aliado. Con Pintuco, tu satisfacción es nuestra garantía."
+                        
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        with col1: st.write(f"**{client_name}** (ID: {client_id})")
+                        with col2:
+                            if email: # Solo muestra el botón si hay un email
+                                if st.button(f"📧 Enviar Email", key=f"email_sale_{client_id}", use_container_width=True):
+                                    subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
+                                    if send_email(email, subject, message):
+                                        st.toast(f"Email enviado a {client_name}!", icon="✅")
+                            else:
+                                st.info("Sin email 🚫") # Mensaje para cuando no hay email
+                        with col3:
+                            if phone: # Solo muestra el botón si hay un teléfono
+                                st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
+                            else:
+                                st.info("Sin teléfono 🚫") # Mensaje para cuando no hay teléfono
+            else:
+                st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
 
-                if not selected_bday_clients.empty:
-                    st.markdown("---")
-                    st.subheader("Clientes Seleccionados para Felicitar:")
-                    
-                    for index, row in selected_bday_clients.iterrows():
-                        client_name = row['Razón Social / Nombre Natural']
-                        email = row['Correo']
-                        phone = row['Teléfono / Celular']
-                        message = f"¡Hola, {client_name}! 🎉 Todo el equipo de Ferreinox quiere desearte un ¡MUY FELIZ CUMPLEAÑOS! 🎈 Gracias por ser parte de nuestra familia. Esperamos que tu día esté lleno de alegría y, por supuesto, ¡mucho color! 🎨✨"
-                        
-                        col1, col2, col3 = st.columns([2, 1, 1])
-                        with col1: st.write(f"**{client_name}**")
-                        with col2:
-                            if st.button(f"📧 Enviar Email", key=f"email_bday_{email}", use_container_width=True):
-                                subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
-                                if send_email(email, subject, message):
-                                    st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
-                        with col3:
-                            st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- MÓDULO DE CUMPLEAÑOS ---
+    with st.container(border=True):
+        st.header("🎂 Cumpleaños del Día")
+
+        if client_df.empty:
+            st.warning("No se pudieron cargar los datos de clientes.")
+        else:
+            today = datetime.now(pytz.timezone('America/Bogota'))
+            client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
+            
+            birthday_clients = client_df[
+                (client_df['Fecha_Nacimiento'].dt.month == today.month) &
+                (client_df['Fecha_Nacimiento'].dt.day == today.day)
+            ].copy()
+            
+            if birthday_clients.empty:
+                st.info("No hay clientes cumpliendo años hoy.")
+            else:
+                st.success(f"¡Hoy es el cumpleaños de **{len(birthday_clients)}** cliente(s)! Selecciónalos para felicitar.")
+                birthday_clients['Seleccionar'] = False
+                cols_bday_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
+                edited_bday_df = st.data_editor(
+                    birthday_clients[cols_bday_display],
+                    hide_index=True, key="bday_selector",
+                    disabled=['Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
+                )
+
+                selected_bday_clients = edited_bday_df[edited_bday_df['Seleccionar']]
+
+                if not selected_bday_clients.empty:
+                    st.markdown("---")
+                    st.subheader("Clientes Seleccionados para Felicitar:")
+                    
+                    for index, row in selected_bday_clients.iterrows():
+                        client_name = row['Razón Social / Nombre Natural']
+                        email = row['Correo']
+                        phone = row['Teléfono / Celular']
+                        message = f"¡Hola, {client_name}! 🎉 Todo el equipo de Ferreinox quiere desearte un ¡MUY FELIZ CUMPLEAÑOS! 🎈 Gracias por ser parte de nuestra familia. Esperamos que tu día esté lleno de alegría y, por supuesto, ¡mucho color! 🎨✨"
+                        
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        with col1: st.write(f"**{client_name}**")
+                        with col2:
+                            if email: # Solo muestra el botón si hay un email
+                                if st.button(f"📧 Enviar Email", key=f"email_bday_{email}", use_container_width=True):
+                                    subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
+                                    if send_email(email, subject, message):
+                                        st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
+                            else:
+                                st.info("Sin email 🚫")
+                        with col3:
+                            if phone: # Solo muestra el botón si hay un teléfono
+                                st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
+                            else:
+                                st.info("Sin teléfono 🚫")
+            else:
+                st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
