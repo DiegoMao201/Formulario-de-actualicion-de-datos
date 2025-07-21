@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PANEL DE GESTIÓN "MÁS ALLÁ DEL COLOR" - FERREINOX S.A.S. BIC
-# Versión 1.5 (Filtro de Productos Específicos y Mensaje Actualizado)
+# Versión 1.6 (Implementación de Dashboard Visual Inspirador)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -126,7 +126,6 @@ def load_sales_data(_dbx):
         if 'nombre_cliente' in df.columns:
             df['nombre_cliente'] = df['nombre_cliente'].apply(normalizar_texto)
         
-        # ### AÑADIDO: Normalizar también el nombre del artículo para una búsqueda fiable
         if 'nombre_articulo' in df.columns:
             df['nombre_articulo'] = df['nombre_articulo'].astype(str).str.upper()
 
@@ -210,179 +209,181 @@ def check_password():
 
 # --- INICIO DEL PANEL DE GESTIÓN ---
 if check_password():
-    st.title("🎨 Panel de Gestión: Más Allá del Color")
+    
+    # --- INICIO: NUEVO DASHBOARD VISUAL ---
+
+    # 1. Título y Bienvenida
+    st.title("🎨 Lienzo de Conexiones")
+    st.markdown("*" + datetime.now(pytz.timezone('America/Bogota')).strftime("%A, %d de %B de %Y") + "*")
     st.markdown("---")
 
+    # 2. Carga de Datos
     gc = connect_to_gsheets()
     dbx = connect_to_dropbox()
-    
-    with st.spinner("Cargando datos de clientes y ventas..."):
+    with st.spinner("Pintando las oportunidades del día..."):
         client_df = load_client_data(gc)
         sales_df = load_sales_data(dbx)
 
-    # --- MÓDULO DE SEGUIMIENTO POST-VENTA ---
-    with st.container(border=True):
-        st.header("📞 Seguimiento Post-Venta")
+    # 3. Cálculos para las Métricas del Dashboard
+    
+    # Cálculo de Cumpleañeros
+    if not client_df.empty and 'Fecha_Nacimiento' in client_df.columns:
+        bogota_tz = pytz.timezone('America/Bogota')
+        today = datetime.now(bogota_tz)
+        client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
+        birthday_clients = client_df[
+            (client_df['Fecha_Nacimiento'].dt.month == today.month) &
+            (client_df['Fecha_Nacimiento'].dt.day == today.day)
+        ].copy()
+        num_cumpleaneros = len(birthday_clients)
+    else:
+        birthday_clients = pd.DataFrame()
+        num_cumpleaneros = 0
+
+    # Cálculo de Oportunidades de Conexión
+    if not sales_df.empty and not client_df.empty:
+        four_days_ago = datetime.now(pytz.timezone('America/Bogota')) - timedelta(days=4)
+        recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
+        
+        product_keywords = ['KORAZA', 'VINILTEX', 'PINTULUX']
+        filter_pattern = '|'.join(product_keywords)
+        
+        if 'nombre_articulo' in recent_sales.columns:
+            filtered_sales = recent_sales[recent_sales['nombre_articulo'].str.contains(filter_pattern, case=True, na=False)].copy()
+            
+            client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
+            filtered_sales['nombre_norm'] = filtered_sales['nombre_cliente']
+            
+            merged_sales_clients = pd.merge(filtered_sales, client_df, on='nombre_norm', how='left')
+            merged_sales_clients.drop_duplicates(subset=['nombre_norm'], keep='first', inplace=True)
+            num_oportunidades = len(merged_sales_clients)
+        else:
+            merged_sales_clients = pd.DataFrame()
+            num_oportunidades = 0
+    else:
+        merged_sales_clients = pd.DataFrame()
+        num_oportunidades = 0
+
+    # 4. Mostrar el Dashboard de 3 Columnas
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.image("https://images.pexels.com/photos/1105325/pexels-photo-1105325.jpeg",
+                 caption="“El color es un poder que influencia directamente el alma.” - Wassily Kandinsky")
+
+    with col2:
+        st.metric("🎂 Celebraciones de Hoy", f"{num_cumpleaneros} clientes")
+        st.markdown("¡Una oportunidad única para regalar sonrisas y fortalecer lazos!")
+
+    with col3:
+        st.metric("🤝 Oportunidades de Conexión", f"{num_oportunidades} clientes")
+        st.markdown("Clientes clave que usaron nuestros mejores productos. ¡Es hora de reconectar!")
+
+    st.markdown("---")
+    
+    # --- FIN: NUEVO DASHBOARD VISUAL ---
+
+
+    # --- INICIO: MÓDULOS EN EXPANDERS ---
+
+    # Módulo de Seguimiento Post-Venta ahora está dentro de un expander
+    with st.expander("📞 Ver Clientes para Seguimiento Post-Venta", expanded=True):
         st.info("Este panel muestra clientes que compraron productos KORAZA, VINILTEX o PINTULUX en los últimos 4 días.")
 
-        if sales_df.empty or 'fecha_venta' not in sales_df.columns:
-            st.warning("No se pudieron cargar los datos de ventas correctamente o el archivo está vacío.")
+        if merged_sales_clients.empty:
+            st.warning("No se encontraron compras de productos clave en los últimos 4 días o no se cargaron los datos de clientes.")
         else:
-            bogota_tz = pytz.timezone('America/Bogota')
-            current_time_bogota = datetime.now(bogota_tz)
-            four_days_ago = current_time_bogota - timedelta(days=4)
+            st.success(f"Se han identificado **{num_oportunidades}** clientes únicos. Edita su contacto si es necesario y selecciónalos para contactar.")
+
+            merged_sales_clients['Seleccionar'] = False
+            cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
+            actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
             
-            recent_sales = sales_df[sales_df['fecha_venta'] >= four_days_ago].copy()
+            disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta'] if col in merged_sales_clients.columns]
 
-            # ### NUEVO: FILTRO POR PRODUCTOS CLAVE ###
-            # 1. Definir las palabras clave para buscar en los nombres de los artículos
-            product_keywords = ['KORAZA', 'VINILTEX', 'PINTULUX']
-            filter_pattern = '|'.join(product_keywords)
-
-            # 2. Filtrar el DataFrame de ventas recientes para que solo incluya transacciones de esos productos
-            if 'nombre_articulo' in recent_sales.columns:
-                filtered_sales = recent_sales[recent_sales['nombre_articulo'].str.contains(filter_pattern, case=True, na=False)].copy()
-            else:
-                st.warning("La columna 'nombre_articulo' no existe en el archivo de ventas, no se puede filtrar por producto.")
-                filtered_sales = pd.DataFrame() # DataFrame vacío si no se puede filtrar
+            edited_df = st.data_editor(
+                merged_sales_clients[actual_cols_to_display],
+                hide_index=True, key="sales_selector",
+                disabled=disabled_cols,
+                column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
+            )
             
-            st.info(f"Se encontraron **{len(filtered_sales)}** transacciones de productos clave en los últimos 4 días.")
+            selected_clients = edited_df[edited_df['Seleccionar']]
 
-            if not filtered_sales.empty and not client_df.empty:
+            if not selected_clients.empty:
+                st.markdown("---")
+                st.subheader("Contactar Clientes Seleccionados:")
                 
-                client_df['nombre_norm'] = client_df['Razón Social / Nombre Natural'].apply(normalizar_texto)
-                filtered_sales['nombre_norm'] = filtered_sales['nombre_cliente']
-
-                merged_sales_clients = pd.merge(
-                    filtered_sales,
-                    client_df[['nombre_norm', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']],
-                    on='nombre_norm',
-                    how='left'
-                )
-
-                merged_sales_clients['Correo'] = merged_sales_clients['Correo'].fillna('')
-                merged_sales_clients['Teléfono / Celular'] = merged_sales_clients['Teléfono / Celular'].fillna('')
-                merged_sales_clients['Razón Social / Nombre Natural'] = merged_sales_clients['Razón Social / Nombre Natural'].fillna(merged_sales_clients['nombre_cliente'])
-                
-                merged_sales_clients.sort_values(by='fecha_venta', ascending=False, inplace=True)
-                merged_sales_clients.drop_duplicates(subset=['nombre_norm'], keep='first', inplace=True)
-
-                st.success(f"De estas, **{len(merged_sales_clients)}** clientes únicos con compras de productos clave fueron identificados. Selecciónalos para contactar.")
-
-                merged_sales_clients['Seleccionar'] = False
-                cols_to_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'fecha_venta', 'Correo', 'Teléfono / Celular']
-                actual_cols_to_display = [col for col in cols_to_display if col in merged_sales_clients.columns]
-                
-                disabled_cols = [col for col in ['Razón Social / Nombre Natural', 'fecha_venta'] if col in merged_sales_clients.columns]
-
-                edited_df = st.data_editor(
-                    merged_sales_clients[actual_cols_to_display],
-                    hide_index=True, key="sales_selector",
-                    disabled=disabled_cols,
-                    column_config={"fecha_venta": st.column_config.DateColumn("Fecha Última Compra", format="YYYY-MM-DD")}
-                )
-                
-                selected_clients = edited_df[edited_df['Seleccionar']]
-
-                if not selected_clients.empty:
-                    st.markdown("---")
-                    st.subheader("Clientes Seleccionados para Contactar:")
+                for index, row in selected_clients.iterrows():
+                    client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
+                    email = row.get('Correo', '')
+                    phone = row.get('Teléfono / Celular', '')
                     
-                    for index, row in selected_clients.iterrows():
-                        client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
-                        email = row.get('Correo', '')
-                        phone = row.get('Teléfono / Celular', '')
-                        
-                        # ### NUEVO: MENSAJE ACTUALIZADO ###
-                        message = f"""¡Hola, {client_name}! 👋 Soy de Ferreinox SAS BIC.
+                    message = f"""¡Hola, {client_name}! 👋 Soy de Ferreinox SAS BIC.
 ¡Te escribo con una sonrisa! 😊 Queríamos saber cómo quedó ese proyecto con el color 🎨 y los productos que eligieron.
 ¡Estamos seguros de que el resultado fue espectacular! 🌟🚀
 Recuerda que en nosotros tienes más que un proveedor, tienes un aliado 🤝. Con la calidad de Pintuco, ¡tu satisfacción es nuestra mayor alegría! 🎉"""
-                        
-                        col1, col2, col3 = st.columns([2, 1, 1])
-                        with col1: st.write(f"**{client_name}**")
-                        with col2:
-                            if email:
-                                if st.button(f"📧 Enviar Email", key=f"email_sale_{index}", use_container_width=True):
-                                    subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
-                                    if send_email(email, subject, message):
-                                        st.toast(f"Email enviado a {client_name}!", icon="✅")
-                            else:
-                                st.info("Sin email 🚫")
-                        with col3:
-                            if phone:
-                                st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
-                            else:
-                                st.info("Sin teléfono 🚫")
-                else:
-                    st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
-            else:
-                 st.info("No se encontraron compras de productos clave en los últimos 4 días o no se cargaron los datos de clientes.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # --- MÓDULO DE CUMPLEAÑOS ---
-    with st.container(border=True):
-        st.header("🎂 Cumpleaños del Día")
-
-        if client_df.empty:
-            st.warning("No se pudieron cargar los datos de clientes.")
-        else:
-            bogota_tz = pytz.timezone('America/Bogota')
-            today = datetime.now(bogota_tz)
-            
-            if 'Fecha_Nacimiento' in client_df.columns:
-                client_df['Fecha_Nacimiento'] = pd.to_datetime(client_df['Fecha_Nacimiento'], errors='coerce')
-                
-                birthday_clients = client_df[
-                    (client_df['Fecha_Nacimiento'].dt.month == today.month) &
-                    (client_df['Fecha_Nacimiento'].dt.day == today.day)
-                ].copy()
-            else:
-                st.warning("La columna 'Fecha_Nacimiento' no se encontró en el DataFrame de clientes.")
-                birthday_clients = pd.DataFrame()
-            
-            if birthday_clients.empty:
-                st.info("No hay clientes cumpliendo años hoy.")
-            else:
-                st.success(f"¡Hoy es el cumpleaños de **{len(birthday_clients)}** cliente(s)! Selecciónalos para felicitar.")
-                birthday_clients['Seleccionar'] = False
-                cols_bday_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
-                actual_cols_bday_display = [col for col in cols_bday_display if col in birthday_clients.columns]
-                disabled_bday_cols = [col for col in ['Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'] if col in birthday_clients.columns]
-
-                edited_bday_df = st.data_editor(
-                    birthday_clients[actual_cols_bday_display],
-                    hide_index=True, key="bday_selector",
-                    disabled=disabled_bday_cols
-                )
-
-                selected_bday_clients = edited_bday_df[edited_bday_df['Seleccionar']]
-
-                if not selected_bday_clients.empty:
-                    st.markdown("---")
-                    st.subheader("Clientes Seleccionados para Felicitar:")
                     
-                    for index, row in selected_bday_clients.iterrows():
-                        client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
-                        email = row.get('Correo', '')
-                        phone = row.get('Teléfono / Celular', '')
-                        message = f"¡Hola, {client_name}! 🎉 Todo el equipo de Ferreinox quiere desearte un ¡MUY FELIZ CUMPLEAÑOS! 🎈 Gracias por ser parte de nuestra familia. Esperamos que tu día esté lleno de alegría y, por supuesto, ¡mucho color! 🎨✨"
-                        
-                        col1, col2, col3 = st.columns([2, 1, 1])
-                        with col1: st.write(f"**{client_name}**")
-                        with col2:
-                            if email:
-                                if st.button(f"📧 Enviar Email", key=f"email_bday_{index}_{client_name[:5]}", use_container_width=True):
-                                    subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
-                                    if send_email(email, subject, message):
-                                        st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
-                            else:
-                                st.info("Sin email 🚫")
-                        with col3:
-                            if phone:
-                                st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
-                            else:
-                                st.info("Sin teléfono 🚫")
-                else:
-                    st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    with c1: st.write(f"**{client_name}**")
+                    with c2:
+                        if email:
+                            if st.button(f"📧 Enviar Email", key=f"email_sale_{index}", use_container_width=True):
+                                subject = f"✨ Un saludo especial desde Ferreinox y Pintuco ✨"
+                                if send_email(email, subject, message):
+                                    st.toast(f"Email enviado a {client_name}!", icon="✅")
+                        else:
+                            st.info("Sin email 🚫")
+                    with c3:
+                        if phone:
+                            st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
+                        else:
+                            st.info("Sin teléfono 🚫")
+            else:
+                st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
+
+    # Módulo de Cumpleaños ahora está dentro de un expander
+    with st.expander("🎂 Ver Clientes que Cumplen Años Hoy"):
+        if birthday_clients.empty:
+            st.info("No hay clientes cumpliendo años hoy.")
+        else:
+            st.success(f"¡Hoy es el cumpleaños de **{len(birthday_clients)}** cliente(s)! Selecciónalos para felicitar.")
+            birthday_clients['Seleccionar'] = False
+            cols_bday_display = ['Seleccionar', 'Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular']
+            actual_cols_bday_display = [col for col in cols_bday_display if col in birthday_clients.columns]
+            disabled_bday_cols = [col for col in ['Razón Social / Nombre Natural', 'Correo', 'Teléfono / Celular'] if col in birthday_clients.columns]
+
+            edited_bday_df = st.data_editor(
+                birthday_clients[actual_cols_bday_display],
+                hide_index=True, key="bday_selector",
+                disabled=disabled_bday_cols
+            )
+
+            selected_bday_clients = edited_bday_df[edited_bday_df['Seleccionar']]
+
+            if not selected_bday_clients.empty:
+                st.markdown("---")
+                st.subheader("Felicitar Clientes Seleccionados:")
+                
+                for index, row in selected_bday_clients.iterrows():
+                    client_name = row.get('Razón Social / Nombre Natural', 'Cliente Desconocido')
+                    email = row.get('Correo', '')
+                    phone = row.get('Teléfono / Celular', '')
+                    message = f"¡Hola, {client_name}! 🎉 Todo el equipo de Ferreinox quiere desearte un ¡MUY FELIZ CUMPLEAÑOS! 🎈 Gracias por ser parte de nuestra familia. Esperamos que tu día esté lleno de alegría y, por supuesto, ¡mucho color! 🎨✨"
+                    
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    with c1: st.write(f"**{client_name}**")
+                    with c2:
+                        if email:
+                            if st.button(f"📧 Enviar Email", key=f"email_bday_{index}_{client_name[:5]}", use_container_width=True):
+                                subject = f"🥳 ¡{client_name}, Ferreinox te desea un Feliz Cumpleaños! 🥳"
+                                if send_email(email, subject, message):
+                                    st.toast(f"Felicitación enviada a {client_name}!", icon="🎉")
+                        else:
+                            st.info("Sin email 🚫")
+                    with c3:
+                        if phone:
+                            st.link_button("📲 Abrir WhatsApp", get_whatsapp_link(phone, message), use_container_width=True)
+                        else:
+                            st.info("Sin teléfono 🚫")
+            else:
+                st.info("Selecciona clientes en la tabla de arriba para ver las opciones de contacto.")
