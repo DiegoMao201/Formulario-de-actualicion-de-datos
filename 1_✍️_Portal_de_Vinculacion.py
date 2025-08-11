@@ -69,6 +69,7 @@ def get_texto_tratamiento_datos(nombre_rep, razon_social, nit):
     """
 
 def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
+    # Nota: Este texto usa el correo de facturación según la ley para notificación de reporte en centrales.
     return f"""
         Yo, <b>{nombre_rep}</b>, mayor de edad, identificado (a) como aparece al pie de mi firma, actuando en nombre
         propio y/o en Representación Legal de <b>{razon_social}</b>, identificado con NIT <b>{nit}</b>. En ejercicio de mi Derecho a
@@ -154,21 +155,37 @@ class PDFGeneratorPlatypus:
         doc.addPageTemplates([template])
         self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
         if self.data.get('client_type') == 'juridica':
-            datos = [[Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body), Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)], [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body), Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)], [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body), Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)], [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body), Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)], [Paragraph('Correo para Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), '', '']]
+            datos = [
+                [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body), Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+                [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body), Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+                [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body), Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+                [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body), Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
+                [Paragraph('Correo Facturación:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), Paragraph('Correo Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo_promo', ''), self.style_body)]
+            ]
             table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
-            table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('SPAN', (1,-1), (3,-1)), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
+            table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
             self.story.append(table_basicos)
-            rep_legal_name, entity_name, entity_id, entity_email = self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']
+            rep_legal_name, entity_name, entity_id, entity_email_facturacion = self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']
         else: # Persona Natural
-            datos = [[Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)], [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)], [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)], [Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)], [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)], [Paragraph('Correo Electrónico:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)]]
+            datos = [
+                [Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)],
+                [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)],
+                [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
+                [Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+                [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
+                [Paragraph('Correo Facturación:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)],
+                [Paragraph('Correo Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo_promo', ''), self.style_body)]
+            ]
             table_basicos = Table(datos, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
             table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
             self.story.append(table_basicos)
-            rep_legal_name, entity_name, entity_id, entity_email = self.data['nombre_natural'], self.data['nombre_natural'], self.data['cedula_natural'], self.data['correo']
+            rep_legal_name, entity_name, entity_id, entity_email_facturacion = self.data['nombre_natural'], self.data['nombre_natural'], self.data['cedula_natural'], self.data['correo']
+        
         self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
-        self.story.append(Paragraph(get_texto_habeas_data(rep_legal_name, entity_name, entity_id, entity_email), self.style_body))
+        self.story.append(Paragraph(get_texto_habeas_data(rep_legal_name, entity_name, entity_id, entity_email_facturacion), self.style_body))
         self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
         self.story.append(Paragraph(get_texto_tratamiento_datos(rep_legal_name, entity_name, entity_id), self.style_body))
+        
         firma_path = self._add_signature_section()
         try:
             doc.build(self.story)
@@ -281,7 +298,9 @@ if st.session_state.process_complete:
 
 elif st.session_state.verification_code_sent:
     st.header("🔐 Verificación de Firma")
-    st.info(f"Hemos enviado un código de 6 dígitos a su correo: **{st.session_state.form_data_cache.get('correo')}**. Por favor, ingréselo para completar el proceso.")
+    # --- MODIFICACIÓN: Mostrar el correo de notificaciones al que se envió el código ---
+    correo_notificaciones = st.session_state.form_data_cache.get('correo_promo')
+    st.info(f"Hemos enviado un código de 6 dígitos a su correo: **{correo_notificaciones}**. Por favor, ingréselo para completar el proceso.")
     user_code = st.text_input("Código de Verificación", max_chars=6)
     
     if st.button("Verificar y Completar Proceso", use_container_width=True):
@@ -302,12 +321,14 @@ elif st.session_state.verification_code_sent:
                     pdf_file_path = pdf_gen.generate()
                     
                     try:
+                        # --- MODIFICACIÓN: Se ajusta el orden de las columnas y se añade el nuevo correo. ---
+                        # --- ¡ATENCIÓN! La hoja de Google Sheets ahora debe tener 19 columnas. ---
                         if form_data['client_type'] == 'juridica':
                             log_row = [
                                 timestamp, doc_id, form_data.get('razon_social', ''), form_data.get('nit', ''),
-                                form_data.get('rep_legal', ''), form_data.get('correo', ''), form_data.get('ciudad', ''),
-                                f"{form_data.get('telefono', '')} / {form_data.get('celular', '')}", "Persona Jurídica",
-                                "Verificado y Enviado", st.session_state.generated_code,
+                                form_data.get('rep_legal', ''), form_data.get('correo', ''), form_data.get('correo_promo', ''),
+                                form_data.get('ciudad', ''), f"{form_data.get('telefono', '')} / {form_data.get('celular', '')}",
+                                "Persona Jurídica", "Verificado y Enviado", st.session_state.generated_code,
                                 form_data.get('nombre_compras', ''), form_data.get('email_compras', ''), form_data.get('celular_compras', ''),
                                 form_data.get('nombre_cartera', ''), form_data.get('email_cartera', ''), form_data.get('celular_cartera', ''),
                                 "" # Campo para fecha_nacimiento
@@ -315,9 +336,10 @@ elif st.session_state.verification_code_sent:
                         else: # Persona Natural
                             log_row = [
                                 timestamp, doc_id, form_data.get('nombre_natural', ''), form_data.get('cedula_natural', ''),
-                                form_data.get('nombre_natural', ''), form_data.get('correo', ''), form_data.get('ciudad', ''),
-                                form_data.get('telefono', ''), "Persona Natural", "Verificado y Enviado",
-                                st.session_state.generated_code, "", "", "", "", "", "", # Campos de contactos vacíos
+                                form_data.get('nombre_natural', ''), form_data.get('correo', ''), form_data.get('correo_promo', ''),
+                                form_data.get('ciudad', ''), form_data.get('telefono', ''),
+                                "Persona Natural", "Verificado y Enviado", st.session_state.generated_code,
+                                "", "", "", "", "", "", # Campos de contactos vacíos
                                 form_data.get('fecha_nacimiento').strftime('%Y-%m-%d') if form_data.get('fecha_nacimiento') else ""
                             ]
                         
@@ -325,13 +347,15 @@ elif st.session_state.verification_code_sent:
                         st.success("✅ Datos guardados exitosamente en Google Sheets.")
                     except Exception as sheet_error:
                         st.error("❌ ¡ERROR CRÍTICO AL GUARDAR EN GOOGLE SHEETS!")
-                        st.warning("Asegúrese de que la hoja de cálculo tiene 18 columnas en el orden correcto y que los tipos de datos coinciden.")
+                        st.warning("Asegúrese de que la hoja de cálculo tiene 19 columnas en el orden correcto y que los tipos de datos coinciden.")
                         st.error(f"Detalle técnico: {sheet_error}")
 
                     file_name = f"Autorizacion_{st.session_state.final_razon_social.replace(' ', '_')}_{entity_id_for_doc}.pdf"
                     email_body = f"""<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha y Hora (Colombia):</b> {timestamp}</p><p>Gracias por confiar en Ferreinox S.A.S. BIC.</p>"""
                     
-                    email_sent_successfully = send_email(form_data['correo'], f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
+                    # --- MODIFICACIÓN: Enviar correo final al correo de notificaciones ---
+                    correo_notificaciones_final = form_data.get('correo_promo')
+                    email_sent_successfully = send_email(correo_notificaciones_final, f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
                     
                     if email_sent_successfully:
                         media = MediaFileUpload(pdf_file_path, mimetype='application/pdf', resumable=True)
@@ -360,7 +384,7 @@ elif not st.session_state.terms_accepted:
         st.subheader("Autorización para Tratamiento de Datos Personales")
         st.markdown(get_texto_tratamiento_datos("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]"), unsafe_allow_html=True)
         st.subheader("Autorización para Consulta en Centrales de Riesgo (Habeas Data)")
-        st.markdown(get_texto_habeas_data("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]", "[Su Correo]"), unsafe_allow_html=True)
+        st.markdown(get_texto_habeas_data("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]", "[Su Correo de Facturación]"), unsafe_allow_html=True)
     if st.button("He leído y acepto los términos para continuar", on_click=lambda: st.session_state.update(terms_accepted=True), use_container_width=True):
         st.rerun()
 
@@ -386,10 +410,13 @@ else: # --- Etapa de llenado de formulario ---
                 nit = st.text_input("NIT*", value=st.session_state.form_data_cache.get('nit', ''))
                 direccion = st.text_input("Dirección*", value=st.session_state.form_data_cache.get('direccion', ''))
                 telefono = st.text_input("Teléfono Fijo", value=st.session_state.form_data_cache.get('telefono', ''))
+                # --- MODIFICACIÓN: Se añade el nuevo campo de correo con una etiqueta clara ---
+                correo_promo = st.text_input("Correo para Promociones y Notificaciones del Portal*", help="A este correo enviaremos el código de verificación y la copia final del documento.", value=st.session_state.form_data_cache.get('correo_promo', ''))
             with col2:
                 nombre_comercial = st.text_input("Nombre Comercial*", value=st.session_state.form_data_cache.get('nombre_comercial', ''))
                 ciudad = st.text_input("Ciudad*", value=st.session_state.form_data_cache.get('ciudad', ''))
-                correo = st.text_input("Correo para Notificaciones*", value=st.session_state.form_data_cache.get('correo', ''))
+                # --- MODIFICACIÓN: Se cambia la etiqueta del correo original ---
+                correo = st.text_input("Correo para Facturación Electrónica*", help="Correo para recibir facturas y documentos contables.", value=st.session_state.form_data_cache.get('correo', ''))
                 celular = st.text_input("Celular", value=st.session_state.form_data_cache.get('celular', ''))
             
             st.markdown("---")
@@ -422,13 +449,16 @@ else: # --- Etapa de llenado de formulario ---
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_j")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                if not all([razon_social, nit, correo, rep_legal, cedula_rep_legal, ciudad, nombre_comercial, lugar_exp_id_rep]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
+                # --- MODIFICACIÓN: Se añade 'correo_promo' a la validación de campos obligatorios ---
+                if not all([razon_social, nit, correo, correo_promo, rep_legal, cedula_rep_legal, ciudad, nombre_comercial, lugar_exp_id_rep]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * son obligatorios y la firma no puede estar vacía.")
                 else:
                     form_data_to_process = {
                         'client_type': 'juridica', 'razon_social': razon_social,
                         'nombre_comercial': nombre_comercial, 'nit': nit, 'direccion': direccion,
                         'ciudad': ciudad, 'telefono': telefono, 'celular': celular, 'correo': correo,
+                        # --- MODIFICACIÓN: Se guarda el nuevo correo ---
+                        'correo_promo': correo_promo,
                         'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id_rep,
                         'lugar_exp_id': lugar_exp_id_rep,
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
@@ -447,14 +477,16 @@ else: # --- Etapa de llenado de formulario ---
                 cedula_natural = st.text_input("C.C.*", value=st.session_state.form_data_cache.get('cedula_natural', ''))
                 direccion_natural = st.text_input("Dirección de Residencia*", value=st.session_state.form_data_cache.get('direccion', ''))
                 telefono_natural = st.text_input("Teléfono / Celular*", value=st.session_state.form_data_cache.get('telefono', ''))
+                 # --- MODIFICACIÓN: Se añade el nuevo campo de correo con una etiqueta clara ---
+                correo_promo_natural = st.text_input("Correo para Promociones y Notificaciones del Portal*", help="A este correo enviaremos el código de verificación y la copia final del documento.", value=st.session_state.form_data_cache.get('correo_promo', ''))
             with col2:
-                correo_natural = st.text_input("Correo Electrónico*", value=st.session_state.form_data_cache.get('correo', ''))
-                # --- CORRECCIÓN: Se añade el campo Ciudad para consistencia de datos ---
+                # --- MODIFICACIÓN: Se cambia la etiqueta del correo original ---
+                correo_natural = st.text_input("Correo para Facturación Electrónica*", help="Correo para recibir facturas y documentos contables.", value=st.session_state.form_data_cache.get('correo', ''))
                 ciudad_natural = st.text_input("Ciudad de Residencia*", value=st.session_state.form_data_cache.get('ciudad', ''))
                 default_tipo_id_nat = st.session_state.form_data_cache.get('tipo_id', "C.C.")
                 tipo_id_nat = st.selectbox("Tipo ID*", ["C.C.", "C.E."], index=["C.C.", "C.E."].index(default_tipo_id_nat) if default_tipo_id_nat in ["C.C.", "C.E."] else 0, key="id_n")
                 lugar_exp_id_nat = st.text_input("Lugar Exp. ID*", value=st.session_state.form_data_cache.get('lugar_exp_id', ''), key="lex_n")
-                
+            
             default_date = st.session_state.form_data_cache.get('fecha_nacimiento')
             if default_date and isinstance(default_date, str):
                 try: default_date = datetime.strptime(default_date, '%Y-%m-%d').date()
@@ -468,15 +500,16 @@ else: # --- Etapa de llenado de formulario ---
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_n")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                # --- CORRECCIÓN: Se añade 'ciudad_natural' a la validación ---
-                if not all([nombre_natural, cedula_natural, correo_natural, telefono_natural, fecha_nacimiento, direccion_natural, lugar_exp_id_nat, ciudad_natural]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
+                # --- MODIFICACIÓN: Se añade 'correo_promo_natural' a la validación ---
+                if not all([nombre_natural, cedula_natural, correo_natural, correo_promo_natural, telefono_natural, fecha_nacimiento, direccion_natural, lugar_exp_id_nat, ciudad_natural]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * y la firma son obligatorios.")
                 else:
                     form_data_to_process = {
                         'client_type': 'natural', 'nombre_natural': nombre_natural,
                         'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat,
                         'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural,
-                        # --- CORRECCIÓN: Se guarda la ciudad en el diccionario de datos ---
+                        # --- MODIFICACIÓN: Se guarda el nuevo correo con una clave consistente ('correo_promo') ---
+                        'correo_promo': correo_promo_natural,
                         'ciudad': ciudad_natural,
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
                         'fecha_nacimiento': fecha_nacimiento
@@ -500,7 +533,9 @@ else: # --- Etapa de llenado de formulario ---
                                 <p>Atentamente,</p>
                                 <p><b>Ferreinox S.A.S. BIC</b></p>"""
             
-            email_sent = send_email(form_data_to_process['correo'], "Su Código de Verificación - Ferreinox", email_body)
+            # --- MODIFICACIÓN: Enviar correo de verificación al NUEVO correo de notificaciones ---
+            correo_notificaciones = form_data_to_process['correo_promo']
+            email_sent = send_email(correo_notificaciones, "Su Código de Verificación - Ferreinox", email_body)
             
             if email_sent:
                 st.session_state.verification_code_sent = True
