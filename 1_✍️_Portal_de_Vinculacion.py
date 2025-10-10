@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 19.1 (Corrección de Parser de ReportLab y Construcción Robusta de PDF)
+# Versión 19.2 (Corrección de Flujo de Documento y Distribución Profesional de PDF)
 # Fecha: 10 de Octubre de 2025
 # =================================================================================================
 
@@ -127,8 +127,6 @@ class PDFGeneratorPlatypus:
         
         canvas.restoreState()
 
-    # --- CORRECCIÓN ---
-    # Se agrega el parámetro 'doc' para que el método tenga acceso a sus propiedades.
     def _create_section_header(self, title, doc):
         header_table = Table([[Paragraph(title, self.style_section_title)]], colWidths=[doc.width], hAlign='LEFT')
         header_table.setStyle(TableStyle([
@@ -140,8 +138,7 @@ class PDFGeneratorPlatypus:
         return header_table
 
     # =============================================================================================
-    # --- CORRECCIÓN CRÍTICA: Construcción Robusta de Textos Legales ---
-    # En lugar de un gran bloque HTML, se construyen párrafos individuales.
+    # --- Construcción Robusta de Textos Legales ---
     # =============================================================================================
     def _add_legal_authorizations(self, nombre_firmante, razon_social, nit_o_cc, email_facturacion):
         self.story.append(Paragraph(
@@ -187,11 +184,8 @@ class PDFGeneratorPlatypus:
         self.story.append(Paragraph("<b>TERCERO: DECLARACIÓN DE VERACIDAD Y VIGENCIA.</b>", self.style_body))
         self.story.append(Paragraph("Certifico que toda la información y datos personales suministrados en el presente formulario son veraces, completos, exactos, actualizados y comprobables. Me comprometo a mantener esta información actualizada, informando oportunamente a LA EMPRESA sobre cualquier cambio. La presente autorización se mantendrá vigente durante la totalidad del tiempo que dure la relación comercial con LA EMPRESA y con posterioridad a la finalización de la misma, para los fines legales y contractuales que correspondan.", self.style_body))
 
-    # --- CORRECCIÓN ---
-    # Se agrega el parámetro 'doc' para que este método pueda pasárselo a `_create_section_header`.
     def _add_signature_section(self, doc):
-        # --- CORRECCIÓN ---
-        # Se pasa el objeto 'doc' a la llamada a `_create_section_header`.
+        self.story.append(Spacer(1, 0.5*inch)) # Espacio antes de la sección de firma
         self.story.append(self._create_section_header("IV. EVIDENCIA DE CONSENTIMIENTO ELECTRÓNICO", doc))
         self.story.append(Spacer(1, 0.2*inch))
         
@@ -223,7 +217,7 @@ class PDFGeneratorPlatypus:
                                 <b>Nombre:</b> {nombre_firmante}<br/>
                                 <b>Identificación:</b> {id_firmante}<br/>
                                 <b>Fecha y Hora de Firma:</b> {fecha_firma} (America/Bogota)<br/>
-                                <b>Medio de Consentimiento:</b> Portal Web Ferreinox v19.1 (Verificado con código OTP)"""
+                                <b>Medio de Consentimiento:</b> Portal Web Ferreinox v19.2 (Verificado con código OTP)"""
             
             table_firma_content = [
                 [firma_image, Paragraph(firma_texto, self.style_signature_info)],
@@ -254,7 +248,6 @@ class PDFGeneratorPlatypus:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
             pdf_path = temp_pdf.name
         
-        # Aquí se crea la variable 'doc'
         doc = BaseDocTemplate(pdf_path, pagesize=letter, leftMargin=0.8*inch, rightMargin=0.8*inch, topMargin=1.5*inch, bottomMargin=1.0*inch)
         
         frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame', topPadding=0)
@@ -262,8 +255,6 @@ class PDFGeneratorPlatypus:
         doc.addPageTemplates([template])
         
         # --- SECCIÓN I: INFORMACIÓN DEL TITULAR ---
-        # --- CORRECCIÓN ---
-        # Se pasa el objeto 'doc' a la llamada a `_create_section_header`.
         self.story.append(self._create_section_header("I. INFORMACIÓN DEL TITULAR DE LOS DATOS", doc))
         self.story.append(Spacer(1, 0.2*inch))
         
@@ -298,21 +289,19 @@ class PDFGeneratorPlatypus:
             ('BACKGROUND', (2,0), (2,-1), colors.whitesmoke),
         ]))
         self.story.append(table_basicos)
-        self.story.append(PageBreak())
+        
+        # --- CORRECCIÓN: Se elimina el PageBreak() para un flujo natural ---
+        self.story.append(Spacer(1, 0.4*inch)) # Se agrega espacio para separar visualmente las secciones
 
         # --- SECCIÓN II y III: AUTORIZACIONES LEGALES ---
-        # --- CORRECCIÓN ---
-        # Se pasa el objeto 'doc' a la llamada a `_create_section_header`.
         self.story.append(self._create_section_header("II & III. AUTORIZACIONES Y DECLARACIONES LEGALES", doc))
         self.story.append(Spacer(1, 0.2*inch))
         
         self._add_legal_authorizations(rep_legal_name, entity_name, entity_id, entity_email_facturacion)
         
-        self.story.append(PageBreak())
+        # --- CORRECCIÓN: Se elimina el PageBreak() para que la firma fluya ---
         
         # --- SECCIÓN IV: FIRMA Y CONSTANCIA ---
-        # --- CORRECCIÓN ---
-        # Se pasa el objeto 'doc' a la llamada a `_add_signature_section`.
         firma_path = self._add_signature_section(doc)
         
         try:
@@ -623,12 +612,12 @@ else:
             code = str(random.randint(100000, 999999))
             st.session_state.generated_code = code
             email_body = f"""<h3>Su Código de Verificación para Ferreinox</h3>
-                                        <p>Hola,</p>
-                                        <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
-                                        <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
-                                        <p>Este código es válido por un tiempo limitado.</p>
-                                        <p>Si usted no solicitó este código, puede ignorar este mensaje.</p><br>
-                                        <p>Atentamente,<br><b>Ferreinox S.A.S. BIC</b></p>"""
+                                         <p>Hola,</p>
+                                         <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
+                                         <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
+                                         <p>Este código es válido por un tiempo limitado.</p>
+                                         <p>Si usted no solicitó este código, puede ignorar este mensaje.</p><br>
+                                         <p>Atentamente,<br><b>Ferreinox S.A.S. BIC</b></p>"""
             
             correo_notificaciones = form_data_to_process['correo_promo']
             email_sent = send_email(correo_notificaciones, "Su Código de Verificación - Ferreinox", email_body)
