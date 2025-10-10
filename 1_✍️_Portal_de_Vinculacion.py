@@ -203,7 +203,7 @@ class PDFGeneratorPlatypus:
             if firma_img_pil.mode == "RGBA":
                 background = Image.new("RGB", firma_img_pil.size, (255, 255, 255))
                 # Usar la capa alfa como máscara para pegar
-                background.paste(firma_img_pil, mask=firma_img_pil.split()[3])
+                background.paste(firma_img_pil, mask=firma_img_pil.split()[3]) 
                 background.save(firma_path, format="PNG")
             else:
                 firma_img_pil.save(firma_path, format="PNG")
@@ -221,10 +221,10 @@ class PDFGeneratorPlatypus:
             fecha_firma = self.data.get('timestamp', 'No disponible')
             
             firma_texto = f"""<b>Firmado Digitalmente Por:</b><br/>
-                              <b>Nombre:</b> {nombre_firmante}<br/>
-                              <b>Identificación:</b> {id_firmante}<br/>
-                              <b>Fecha y Hora de Firma:</b> {fecha_firma} (America/Bogota)<br/>
-                              <b>Medio de Consentimiento:</b> Portal Web Ferreinox v19.0 (Verificado con código OTP)"""
+                                <b>Nombre:</b> {nombre_firmante}<br/>
+                                <b>Identificación:</b> {id_firmante}<br/>
+                                <b>Fecha y Hora de Firma:</b> {fecha_firma} (America/Bogota)<br/>
+                                <b>Medio de Consentimiento:</b> Portal Web Ferreinox v19.0 (Verificado con código OTP)"""
             
             table_firma_content = [
                 [firma_image, Paragraph(firma_texto, self.style_signature_info)],
@@ -639,14 +639,14 @@ else: # --- Etapa de llenado de formulario ---
             code = str(random.randint(100000, 999999))
             st.session_state.generated_code = code
             email_body = f"""<h3>Su Código de Verificación para Ferreinox</h3>
-                                 <p>Hola,</p>
-                                 <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
-                                 <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
-                                 <p>Este código es válido por un tiempo limitado.</p>
-                                 <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>
-                                 <br>
-                                 <p>Atentamente,</p>
-                                 <p><b>Ferreinox S.A.S. BIC</b></p>"""
+                                        <p>Hola,</p>
+                                        <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
+                                        <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
+                                        <p>Este código es válido por un tiempo limitado.</p>
+                                        <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>
+                                        <br>
+                                        <p>Atentamente,</p>
+                                        <p><b>Ferreinox S.A.S. BIC</b></p>"""
             
             correo_notificaciones = form_data_to_process['correo_promo']
             email_sent = send_email(correo_notificaciones, "Su Código de Verificación - Ferreinox", email_body)
