@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # APLICACIÓN INSTITUCIONAL DE VINCULACIÓN DE CLIENTES - FERREINOX S.A.S. BIC
-# Versión 18.2 (Corrección de Lógica de Flujo y Envío de Correo)
+# Versión 19.0 (Mejora Profesional de PDF, Corrección de Firma y Refuerzo Legal)
 # Fecha: 21 de Julio de 2025
 # =================================================================================================
 
@@ -16,11 +16,11 @@ import numpy as np
 import random
 import pytz
 
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, cm
 from reportlab.lib.pagesizes import letter
 
 from google.oauth2.service_account import Credentials
@@ -38,6 +38,7 @@ FERREINOX_DARK_BLUE = "#0D47A1"
 FERREINOX_ACCENT_BLUE = "#1565C0"
 FERREINOX_LIGHT_BG = "#F0F2F6"
 FERREINOX_YELLOW_ACCENT = "#FBC02D"
+FERREINOX_GREY = "#424242"
 
 st.markdown(f"""
 <style>
@@ -56,147 +57,276 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-def get_texto_tratamiento_datos(nombre_rep, razon_social, nit):
-    return f"""
-        Yo, <b>{nombre_rep}</b>, mayor de edad, identificado(a) como aparece al pie de mi firma, actuando en nombre
-        propio y/o en Representación Legal de <b>{razon_social}</b>, identificado con NIT <b>{nit}</b>, manifiesto que de
-        conformidad con la Política de Tratamiento de Datos Personales para Clientes, Proveedores, Colaboradores y Ex colaboradores" implementada
-        por FERREINOX S.A.S. BIC., sociedad identificada con NIT. 800224617-8, la cuál puede ser encontrada en sus instalaciones o página Web
-        www.ferreinox.co; y de acuerdo a la relación comercial existente entre las partes, autorizo a FERREINOX S.A.S. BIC para tratar mis datos
-        personales y usarlos con el fin de enviar información de ventas, compras, comercial, publicitaria, facturas y documentos de cobro, pago, ofertas,
-        promociones, para ofrecer novedades, comunicar cambios y actualizaciones de información de la compañía, actividades de mercadeo, para
-        fines estadísticos o administrativos que resulten de la ejecución del objeto social de FERREINOX S.A.S. BIC.
-    """
 
-def get_texto_habeas_data(nombre_rep, razon_social, nit, email):
-    # Nota: Este texto usa el correo de facturación según la ley para notificación de reporte en centrales.
+# =================================================================================================
+# --- SECCIÓN DE TEXTOS LEGALES MEJORADA ---
+# =================================================================================================
+
+def get_texto_autorizaciones_completo(nombre_firmante, razon_social, nit_o_cc, email_facturacion, doc_id):
     return f"""
-        Yo, <b>{nombre_rep}</b>, mayor de edad, identificado (a) como aparece al pie de mi firma, actuando en nombre
-        propio y/o en Representación Legal de <b>{razon_social}</b>, identificado con NIT <b>{nit}</b>. En ejercicio de mi Derecho a
-        la Libertad y Autodeterminación Informática, autorizo a Ferreinox S.A.S. BIC o a la entidad que mi acreedor para representarlo o a su cesionario,
-        endosatario o a quien ostente en el futuro la calidad de acreedor, para que la información comercial, crediticia, financiera y de servicios sea
-        administrada y consultada por terceras personas autorizadas expresamente por la Ley 1266 de 2008.
-        Autorizo también para que “la notificación” a que hace referencia el Decreto 2952 del 6 de agosto de 2010 en su artículo 2º, se pueda surtir a
-        través de mensaje de datos y para ello suministro y declaro el siguiente correo electrónico: <b>{email}</b>.
-        Certifico que los datos personales suministrados por mí, son veraces, completos, exactos, actualizados, reales y comprobables.
+    <para>
+    Yo, <b>{nombre_firmante}</b>, mayor de edad, identificado(a) como aparece al pie de mi firma, actuando en nombre propio y/o en calidad de Representante Legal de la entidad <b>{razon_social}</b>, identificada con NIT/C.C. No. <b>{nit_o_cc}</b> (en adelante "EL TITULAR"), mediante la suscripción del presente documento identificado con el ID Único <b>{doc_id}</b>, declaro de manera libre, expresa, inequívoca e informada, que otorgo mi consentimiento previo y autorizo a <b>FERREINOX S.A.S. BIC</b>, sociedad identificada con NIT. 800.224.617-8 (en adelante "LA EMPRESA"), para el tratamiento de mis datos personales y los de la entidad que represento, en conformidad con la Ley Estatutaria 1581 de 2012, la Ley 1266 de 2008 y demás normas concordantes.
+    </para>
+    <br/><br/>
+    <para>
+    <b>PRIMERO: AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES (LEY 1581 DE 2012).</b>
+    Manifiesto que he sido informado(a) de manera clara y comprensible sobre lo siguiente:
+    <br/><br/>
+    <b>1. Finalidades del Tratamiento:</b> LA EMPRESA tratará mis datos personales para las siguientes finalidades:
+    <ul>
+        <li><b>a. Gestión Comercial y de Relacionamiento:</b> Ejecutar la relación comercial existente, incluyendo la gestión de cotizaciones, pedidos, despachos, y servicio postventa.</li>
+        <li><b>b. Gestión de Facturación y Cartera:</b> Generar, enviar, y gestionar facturas electrónicas y documentos equivalentes; realizar actividades de gestión de cobro y recuperación de cartera.</li>
+        <li><b>c. Fines de Mercadeo y Publicidad:</b> Enviar información sobre productos, servicios, ofertas, promociones, eventos, campañas de fidelización y novedades de LA EMPRESA a través de medios físicos y digitales (correo electrónico, SMS, WhatsApp, etc.).</li>
+        <li><b>d. Fines Administrativos y Estadísticos:</b> Realizar análisis estadísticos internos, reportes, encuestas de satisfacción, y cumplir con las obligaciones legales y regulatorias a las que LA EMPRESA está sujeta.</li>
+        <li><b>e. Seguridad y Control:</b> Garantizar la seguridad de las transacciones y prevenir el fraude.</li>
+    </ul>
+    <b>2. Derechos del Titular:</b> Conozco que como titular de la información, me asisten los derechos consagrados en el artículo 8 de la Ley 1581 de 2012, en especial:
+    <ul>
+        <li><b>a.</b> Conocer, actualizar y rectificar mis datos personales.</li>
+        <li><b>b.</b> Solicitar prueba de la autorización otorgada.</li>
+        <li><b>c.</b> Ser informado sobre el uso que se le ha dado a mis datos.</li>
+        <li><b>d.</b> Presentar quejas ante la Superintendencia de Industria y Comercio por infracciones a la ley.</li>
+        <li><b>e.</b> Revocar la autorización y/o solicitar la supresión del dato cuando no se respeten los principios, derechos y garantías constitucionales y legales.</li>
+        <li><b>f.</b> Acceder en forma gratuita a mis datos personales objeto de tratamiento.</li>
+    </ul>
+    <b>3. Política de Tratamiento:</b> Declaro conocer que la Política de Tratamiento de Datos Personales de LA EMPRESA está disponible para mi consulta en sus instalaciones y en el sitio web www.ferreinox.co.
+    </para>
+    <br/><br/>
+    <para>
+    <b>SEGUNDO: AUTORIZACIÓN PARA CONSULTA, REPORTE Y ADMINISTRACIÓN DE INFORMACIÓN FINANCIERA Y CREDITICIA (HÁBEAS DATA - LEY 1266 DE 2008).</b>
+    Autorizo de manera expresa e irrevocable a LA EMPRESA, o a quien en el futuro ostente la calidad de acreedor, para:
+    <br/><br/>
+    <ul>
+        <li><b>a.</b> Consultar, en cualquier tiempo, en las centrales de riesgo (como CIFIN, DATACRÉDITO, u otras) y cualquier otra base de datos de contenido comercial o de servicios, toda la información relevante para conocer mi desempeño como deudor, mi capacidad de pago, o para valorar el riesgo futuro de concederme crédito.</li>
+        <li><b>b.</b> Reportar a las centrales de riesgo y a cualquier otra base de datos autorizada, datos sobre el cumplimiento o incumplimiento de mis obligaciones crediticias y comerciales, así como mis datos de contacto e información personal relevante.</li>
+        <li><b>c.</b> Suministrar a las centrales de riesgo datos relativos a mis solicitudes de crédito, así como otros atinentes a mis relaciones comerciales, financieras y de servicios.</li>
+    </ul>
+    <b>Notificación Previa al Reporte Negativo:</b> De conformidad con el artículo 12 de la Ley 1266 de 2008 y el Decreto 2952 de 2010, autorizo expresamente que la comunicación previa al reporte negativo por mora en mis obligaciones se realice a través de un mensaje de datos enviado al correo electrónico de facturación suministrado en este formulario, es decir: <b>{email_facturacion}</b>.
+    </para>
+    <br/><br/>
+    <para>
+    <b>TERCERO: DECLARACIÓN DE VERACIDAD Y VIGENCIA.</b>
+    Certifico que toda la información y datos personales suministrados en el presente formulario son veraces, completos, exactos, actualizados y comprobables. Me comprometo a mantener esta información actualizada, informando oportunamente a LA EMPRESA sobre cualquier cambio. La presente autorización se mantendrá vigente durante la totalidad del tiempo que dure la relación comercial con LA EMPRESA y con posterioridad a la finalización de la misma, para los fines legales y contractuales que correspondan.
+    </para>
     """
 
 class PDFGeneratorPlatypus:
-    def __init__(self, data):
+    def __init__(self, data, doc_id):
         self.data = data
+        self.doc_id = doc_id
         self.story = []
+        
+        # --- ESTILOS PROFESIONALES ---
         styles = getSampleStyleSheet()
         self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=14)
-        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=16, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceAfter=2)
-        self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
-        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_LEFT, textColor=colors.HexColor(FERREINOX_DARK_BLUE), spaceBefore=18, spaceAfter=8)
-        self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.white, alignment=TA_LEFT)
+        self.style_body_bold = ParagraphStyle(name='BodyBold', parent=self.style_body, fontName='Helvetica-Bold')
+        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_DARK_BLUE))
+        self.style_header_info = ParagraphStyle(name='HeaderInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_RIGHT, textColor=colors.HexColor(FERREINOX_GREY))
+        self.style_footer = ParagraphStyle(name='Footer', parent=styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_CENTER, textColor=colors.HexColor(FERREINOX_GREY))
+        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=12, alignment=TA_LEFT, textColor=colors.white, spaceBefore=12, spaceAfter=6, leftIndent=10)
+        self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor(FERREINOX_GREY), alignment=TA_LEFT)
         self.style_signature_info = ParagraphStyle(name='SignatureInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_LEFT, leading=14)
 
     def _on_page(self, canvas, doc):
         canvas.saveState()
+        # --- ENCABEZADO MEJORADO ---
         try:
             logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.5*inch, height=0.8*inch, hAlign='LEFT')
         except Exception:
-            logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body)
-        header_content = [[logo, Paragraph("<b>ACTUALIZACIÓN Y AUTORIZACIÓN<br/>DE DATOS</b>", self.style_header_title)]]
+            logo = Paragraph("Ferreinox S.A.S. BIC", self.style_body_bold)
+        
+        header_title_text = "<b>AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS</b>"
+        header_info_text = f"ID Documento: {self.doc_id}<br/>Fecha Generación: {self.data.get('timestamp', '')}"
+        
+        header_content = [
+            [logo, [Paragraph(header_title_text, self.style_header_title), Spacer(1, 4), Paragraph(header_info_text, self.style_header_info)]]
+        ]
+        
         header_table = Table(header_content, colWidths=[3.0*inch, 4.2*inch], hAlign='LEFT')
-        header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'BOTTOM'), ('ALIGN', (1, 0), (1, 0), 'RIGHT'), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0), ('TOPPADDING', (0,0), (-1,-1), 0)]))
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0)
+        ]))
+        
         w, h = header_table.wrap(doc.width, doc.topMargin)
         header_table.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h + 15)
-        canvas.restoreState()
-        canvas.saveState()
-        footer_content = [[Paragraph(f"<b>EVOLUCIONANDO <font color='{FERREINOX_YELLOW_ACCENT}'>JUNTOS</font></b>", self.style_footer), Paragraph(f"Página {doc.page}", self.style_footer)]]
+        
+        # Línea divisoria del encabezado
+        canvas.setStrokeColor(colors.HexColor(FERREINOX_DARK_BLUE))
+        canvas.setLineWidth(2)
+        canvas.line(doc.leftMargin, doc.height + doc.topMargin - h, doc.leftMargin + doc.width, doc.height + doc.topMargin - h)
+        
+        # --- PIE DE PÁGINA PROFESIONAL ---
+        footer_text = "Ferreinox S.A.S. BIC | NIT. 800.224.617-8 | www.ferreinox.co | Pereira, Colombia"
+        footer_page_num = f"Página {doc.page}"
+        
+        footer_content = [[Paragraph(footer_text, self.style_footer), Paragraph(footer_page_num, self.style_footer)]]
         footer_table = Table(footer_content, colWidths=[doc.width/2, doc.width/2])
-        footer_table.setStyle(TableStyle([('ALIGN', (0,0), (0,0), 'LEFT'), ('ALIGN', (1,0), (1,0), 'RIGHT'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+        footer_table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (0,0), 'LEFT'),
+            ('ALIGN', (1,0), (1,0), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
+        ]))
+        
         w, h = footer_table.wrap(doc.width, doc.bottomMargin)
         footer_table.drawOn(canvas, doc.leftMargin, h - 10)
+        
         canvas.restoreState()
 
+    def _create_section_header(self, title):
+        header_table = Table([[Paragraph(title, self.style_section_title)]], colWidths=[doc.width], hAlign='LEFT')
+        header_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor(FERREINOX_DARK_BLUE)),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4)
+        ]))
+        return header_table
+
     def _add_signature_section(self):
-        self.story.append(Paragraph("4. CONSTANCIA DE ACEPTACIÓN Y FIRMA DIGITAL", self.style_section_title))
+        self.story.append(self._create_section_header("IV. EVIDENCIA DE CONSENTIMIENTO ELECTRÓNICO"))
+        self.story.append(Spacer(1, 0.2*inch))
+        
         firma_path = None
         try:
+            # --- CORRECCIÓN CRÍTICA DE LA FIRMA ---
+            # Guardamos la imagen en un archivo temporal con un nombre persistente
+            # que ReportLab pueda encontrar.
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_img:
                 firma_path = temp_img.name
-            firma_img = self.data['firma_img_pil']
-            if firma_img.mode == "RGBA":
-                background = Image.new("RGB", firma_img.size, (255, 255, 255))
-                background.paste(firma_img, mask=firma_img.split()[3])
+            
+            firma_img_pil = self.data['firma_img_pil']
+            
+            # Convertir RGBA (de Streamlit Canvas) a RGB para compatibilidad
+            if firma_img_pil.mode == "RGBA":
+                background = Image.new("RGB", firma_img_pil.size, (255, 255, 255))
+                # Usar la capa alfa como máscara para pegar
+                background.paste(firma_img_pil, mask=firma_img_pil.split()[3])
                 background.save(firma_path, format="PNG")
             else:
-                firma_img.save(firma_path, format="PNG")
+                firma_img_pil.save(firma_path, format="PNG")
+            
+            # Ahora creamos el objeto de imagen de Platypus con la ruta del archivo guardado
             firma_image = PlatypusImage(firma_path, width=2.5*inch, height=1.0*inch)
+            
             if self.data.get('client_type') == 'juridica':
-                nombre_firmante, id_firmante = self.data.get('rep_legal', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
+                nombre_firmante = self.data.get('rep_legal', '')
+                id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_rep_legal', '')} de {self.data.get('lugar_exp_id', '')}"
             else:
-                nombre_firmante, id_firmante = self.data.get('nombre_natural', ''), f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
+                nombre_firmante = self.data.get('nombre_natural', '')
+                id_firmante = f"{self.data.get('tipo_id', '')} No. {self.data.get('cedula_natural', '')} de {self.data.get('lugar_exp_id', '')}"
             
             fecha_firma = self.data.get('timestamp', 'No disponible')
             
-            firma_texto = f"""<b>Nombre:</b> {nombre_firmante}<br/>
-                <b>Identificación:</b> {id_firmante}<br/>
-                <b>Fecha de Firma:</b> {fecha_firma}<br/>
-                <b>Consentimiento Vía:</b> Portal Web v18.2 (Verificado)"""
-            table_firma = Table([[firma_image, Paragraph(firma_texto, self.style_signature_info)]], colWidths=[2.8*inch, 4.4*inch], hAlign='LEFT')
-            table_firma.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (1,0), (1,0), 10)]))
+            firma_texto = f"""<b>Firmado Digitalmente Por:</b><br/>
+                              <b>Nombre:</b> {nombre_firmante}<br/>
+                              <b>Identificación:</b> {id_firmante}<br/>
+                              <b>Fecha y Hora de Firma:</b> {fecha_firma} (America/Bogota)<br/>
+                              <b>Medio de Consentimiento:</b> Portal Web Ferreinox v19.0 (Verificado con código OTP)"""
+            
+            table_firma_content = [
+                [firma_image, Paragraph(firma_texto, self.style_signature_info)],
+                [Paragraph("<i>Firma Electrónica</i>", self.style_footer), '']
+            ]
+            
+            table_firma = Table(table_firma_content, colWidths=[2.8*inch, 4.4*inch], rowHeights=[1.2*inch, 0.2*inch], hAlign='LEFT')
+            table_firma.setStyle(TableStyle([
+                ('VALIGN', (0,0), (0,0), 'TOP'),
+                ('LEFTPADDING', (1,0), (1,0), 10),
+                ('TOPPADDING', (0,0), (-1,-1), 5),
+                ('ALIGN', (0,1), (0,1), 'CENTER')
+            ]))
             self.story.append(table_firma)
+            
+            self.story.append(Spacer(1, 0.2*inch))
+            self.story.append(Paragraph(
+                "<i>Este documento y su firma electrónica han sido generados y custodiados por Ferreinox S.A.S. BIC, constituyendo plena prueba del consentimiento otorgado por el titular, de acuerdo con la Ley 527 de 1999 sobre comercio y firma electrónica.</i>",
+                self.style_footer
+            ))
+
             return firma_path
         except Exception as e:
-            self.story.append(Paragraph("Error al generar la imagen de la firma: " + str(e), self.style_body))
+            self.story.append(Paragraph(f"<b>Error crítico al procesar la firma digital:</b> {str(e)}", self.style_body))
             return None
 
     def generate(self):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
             pdf_path = temp_pdf.name
-        doc = BaseDocTemplate(pdf_path, pagesize=letter, leftMargin=0.6*inch, rightMargin=0.6*inch, topMargin=1.1*inch, bottomMargin=0.6*inch)
-        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame', topPadding=0.5*inch)
+        
+        global doc # Hacer doc global para que el header lo pueda usar
+        doc = BaseDocTemplate(pdf_path, pagesize=letter, leftMargin=0.8*inch, rightMargin=0.8*inch, topMargin=1.5*inch, bottomMargin=1.0*inch)
+        
+        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='main_frame', topPadding=0)
         template = PageTemplate(id='main_template', frames=[frame], onPage=self._on_page)
         doc.addPageTemplates([template])
-        self.story.append(Paragraph("1. DATOS BÁSICOS", self.style_section_title))
+        
+        # --- SECCIÓN I: INFORMACIÓN DEL TITULAR ---
+        self.story.append(self._create_section_header("I. INFORMACIÓN DEL TITULAR DE LOS DATOS"))
+        self.story.append(Spacer(1, 0.2*inch))
+        
         if self.data.get('client_type') == 'juridica':
             datos = [
-                [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body), Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
-                [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body), Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-                [Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body), Paragraph('Teléfono:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
-                [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body), Paragraph('Celular:', self.style_table_header), Paragraph(self.data.get('celular', ''), self.style_body)],
-                [Paragraph('Correo Facturación:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body), Paragraph('Correo Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo_promo', ''), self.style_body)]
+                [Paragraph('Razón Social:', self.style_table_header), Paragraph(self.data.get('razon_social', ''), self.style_body), Paragraph('NIT:', self.style_table_header), Paragraph(self.data.get('nit', ''), self.style_body)],
+                [Paragraph('Nombre Comercial:', self.style_table_header), Paragraph(self.data.get('nombre_comercial', ''), self.style_body), Paragraph('Teléfono:', self.style_table_header), Paragraph(f"{self.data.get('telefono', '')} / {self.data.get('celular', '')}", self.style_body)],
+                [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body), Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+                [Paragraph('Email Facturación:', self.style_table_header), Paragraph(f"<b>{self.data.get('correo', '')}</b>", self.style_body), Paragraph('Email Notificaciones:', self.style_table_header), Paragraph(f"<b>{self.data.get('correo_promo', '')}</b>", self.style_body)],
+                [Paragraph('Representante Legal:', self.style_table_header), Paragraph(self.data.get('rep_legal', ''), self.style_body), Paragraph('C.C. Rep. Legal:', self.style_table_header), Paragraph(self.data.get('cedula_rep_legal', ''), self.style_body)]
             ]
-            table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT', rowHeights=0.3*inch)
-            table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('BACKGROUND', (2,0), (2,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6)]))
-            self.story.append(table_basicos)
+            table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT')
             rep_legal_name, entity_name, entity_id, entity_email_facturacion = self.data['rep_legal'], self.data['razon_social'], self.data['nit'], self.data['correo']
         else: # Persona Natural
             datos = [
-                [Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body)],
-                [Paragraph('No. Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)],
-                [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body)],
-                [Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
-                [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body)],
-                [Paragraph('Correo Facturación:', self.style_table_header), Paragraph(self.data.get('correo', ''), self.style_body)],
-                [Paragraph('Correo Notificaciones:', self.style_table_header), Paragraph(self.data.get('correo_promo', ''), self.style_body)]
+                [Paragraph('Nombre Completo:', self.style_table_header), Paragraph(self.data.get('nombre_natural', ''), self.style_body), Paragraph('Identificación:', self.style_table_header), Paragraph(self.data.get('cedula_natural', ''), self.style_body)],
+                [Paragraph('Dirección:', self.style_table_header), Paragraph(self.data.get('direccion', ''), self.style_body), Paragraph('Ciudad:', self.style_table_header), Paragraph(self.data.get('ciudad', ''), self.style_body)],
+                [Paragraph('Teléfono / Celular:', self.style_table_header), Paragraph(self.data.get('telefono', ''), self.style_body), Paragraph('Fecha Nacimiento:', self.style_table_header), Paragraph(self.data.get('fecha_nacimiento').strftime('%d-%b-%Y') if self.data.get('fecha_nacimiento') else "", self.style_body)],
+                [Paragraph('Email Facturación:', self.style_table_header), Paragraph(f"<b>{self.data.get('correo', '')}</b>", self.style_body), Paragraph('Email Notificaciones:', self.style_table_header), Paragraph(f"<b>{self.data.get('correo_promo', '')}</b>", self.style_body)]
             ]
-            table_basicos = Table(datos, colWidths=[2.2*inch, 5.0*inch], hAlign='LEFT')
-            table_basicos.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.HexColor(FERREINOX_DARK_BLUE)), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
-            self.story.append(table_basicos)
+            table_basicos = Table(datos, colWidths=[1.5*inch, 2.1*inch, 1.5*inch, 2.1*inch], hAlign='LEFT')
             rep_legal_name, entity_name, entity_id, entity_email_facturacion = self.data['nombre_natural'], self.data['nombre_natural'], self.data['cedula_natural'], self.data['correo']
         
-        self.story.append(Paragraph("2. AUTORIZACIÓN HABEAS DATA", self.style_section_title))
-        self.story.append(Paragraph(get_texto_habeas_data(rep_legal_name, entity_name, entity_id, entity_email_facturacion), self.style_body))
-        self.story.append(Paragraph("3. AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES", self.style_section_title))
-        self.story.append(Paragraph(get_texto_tratamiento_datos(rep_legal_name, entity_name, entity_id), self.style_body))
+        table_basicos.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
+            ('BACKGROUND', (2,0), (2,-1), colors.whitesmoke),
+        ]))
+        self.story.append(table_basicos)
+        self.story.append(PageBreak())
+
+        # --- SECCIÓN II y III: AUTORIZACIONES LEGALES ---
+        self.story.append(self._create_section_header("II & III. AUTORIZACIONES Y DECLARACIONES LEGALES"))
+        self.story.append(Spacer(1, 0.2*inch))
         
+        full_legal_text = get_texto_autorizaciones_completo(rep_legal_name, entity_name, entity_id, entity_email_facturacion, self.doc_id)
+        self.story.append(Paragraph(full_legal_text, self.style_body))
+        
+        self.story.append(PageBreak())
+        
+        # --- SECCIÓN IV: FIRMA Y CONSTANCIA ---
         firma_path = self._add_signature_section()
+        
         try:
             doc.build(self.story)
         finally:
+            # Asegurarse de limpiar el archivo temporal de la firma después de construir el PDF
             if firma_path and os.path.exists(firma_path):
                 os.unlink(firma_path)
+        
         return pdf_path
+
+
+# =================================================================================================
+# --- LÓGICA DE LA APLICACIÓN (SIN CAMBIOS SIGNIFICATIVOS) ---
+# =================================================================================================
 
 # --- CONEXIONES Y SECRETOS (BLOQUE CORREGIDO) ---
 try:
-    # --- CORRECCIÓN: Se añaden todas las claves de secretos necesarias para una validación completa al inicio ---
     required_secrets = ["google_sheet_id", "google_credentials", "drive_folder_id", "email_credentials"]
     if not all(secret in st.secrets for secret in required_secrets):
         st.error("🚨 Error Crítico: Faltan una o más configuraciones en tus secretos de Streamlit. Asegúrate de tener 'google_sheet_id', 'drive_folder_id', y las secciones '[google_credentials]' y '[email_credentials]'.")
@@ -240,7 +370,6 @@ def send_email(recipient_email, subject, body, pdf_path=None, filename=None):
             part['Content-Disposition'] = f'attachment; filename="{filename}"'
             msg.attach(part)
         
-        # Use SSL context for secure connection
         context = smtplib.ssl.create_default_context()
         with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
             server.login(sender_email, sender_password)
@@ -298,7 +427,6 @@ if st.session_state.process_complete:
 
 elif st.session_state.verification_code_sent:
     st.header("🔐 Verificación de Firma")
-    # --- MODIFICACIÓN: Mostrar el correo de notificaciones al que se envió el código ---
     correo_notificaciones = st.session_state.form_data_cache.get('correo_promo')
     st.info(f"Hemos enviado un código de 6 dígitos a su correo: **{correo_notificaciones}**. Por favor, ingréselo para completar el proceso.")
     user_code = st.text_input("Código de Verificación", max_chars=6)
@@ -317,12 +445,11 @@ elif st.session_state.verification_code_sent:
                 doc_id = f"FER-{now_colombia.strftime('%Y%m%d%H%M%S')}-{entity_id_for_doc}"
                 pdf_file_path = None
                 try:
-                    pdf_gen = PDFGeneratorPlatypus(form_data)
+                    pdf_gen = PDFGeneratorPlatypus(form_data, doc_id)
                     pdf_file_path = pdf_gen.generate()
                     
                     try:
-                        # --- MODIFICACIÓN: Se ajusta el orden de las columnas y se añade el nuevo correo. ---
-                        # --- ¡ATENCIÓN! La hoja de Google Sheets ahora debe tener 19 columnas. ---
+                        # La hoja de Google Sheets ahora debe tener 19 columnas.
                         if form_data['client_type'] == 'juridica':
                             log_row = [
                                 timestamp, doc_id, form_data.get('razon_social', ''), form_data.get('nit', ''),
@@ -353,7 +480,6 @@ elif st.session_state.verification_code_sent:
                     file_name = f"Autorizacion_{st.session_state.final_razon_social.replace(' ', '_')}_{entity_id_for_doc}.pdf"
                     email_body = f"""<h3>Confirmación de Autorización - Ferreinox S.A.S. BIC</h3><p>Estimado(a) <b>{form_data.get('rep_legal', form_data.get('nombre_natural'))}</b>,</p><p>Este correo confirma que hemos recibido y procesado exitosamente su formulario de autorización de datos.</p><p>Adjunto encontrará el documento PDF con la información y la constancia de su consentimiento.</p><p><b>ID del Documento:</b> {doc_id}<br><b>Fecha y Hora (Colombia):</b> {timestamp}</p><p>Gracias por confiar en Ferreinox S.A.S. BIC.</p>"""
                     
-                    # --- MODIFICACIÓN: Enviar correo final al correo de notificaciones ---
                     correo_notificaciones_final = form_data.get('correo_promo')
                     email_sent_successfully = send_email(correo_notificaciones_final, f"Confirmación Vinculación - {st.session_state.final_razon_social}", email_body, pdf_file_path, file_name)
                     
@@ -381,10 +507,9 @@ elif not st.session_state.terms_accepted:
     st.header("📜 Términos, Condiciones y Autorizaciones")
     st.markdown("Bienvenido al portal de vinculación de Ferreinox S.A.S. BIC. A continuación, encontrará los términos y condiciones para el tratamiento de sus datos.")
     with st.expander("Haga clic aquí para leer los Términos Completos"):
-        st.subheader("Autorización para Tratamiento de Datos Personales")
-        st.markdown(get_texto_tratamiento_datos("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]"), unsafe_allow_html=True)
-        st.subheader("Autorización para Consulta en Centrales de Riesgo (Habeas Data)")
-        st.markdown(get_texto_habeas_data("[Su Nombre / Nombre Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]", "[Su Correo de Facturación]"), unsafe_allow_html=True)
+        st.subheader("Autorización para Tratamiento de Datos y Consulta en Centrales (Habeas Data)")
+        # Usamos una versión simplificada para la vista previa
+        st.markdown(get_texto_autorizaciones_completo("[Su Nombre / Rep. Legal]", "[Su Empresa / Su Nombre]", "[Su NIT / Cédula]", "[Su Correo de Facturación]", "[ID Documento]").replace("\n", "").replace("<ul>", "<ul style='margin-left: 20px;'>"), unsafe_allow_html=True)
     if st.button("He leído y acepto los términos para continuar", on_click=lambda: st.session_state.update(terms_accepted=True), use_container_width=True):
         st.rerun()
 
@@ -410,12 +535,10 @@ else: # --- Etapa de llenado de formulario ---
                 nit = st.text_input("NIT*", value=st.session_state.form_data_cache.get('nit', ''))
                 direccion = st.text_input("Dirección*", value=st.session_state.form_data_cache.get('direccion', ''))
                 telefono = st.text_input("Teléfono Fijo", value=st.session_state.form_data_cache.get('telefono', ''))
-                # --- MODIFICACIÓN: Se añade el nuevo campo de correo con una etiqueta clara ---
                 correo_promo = st.text_input("Correo para Promociones y Notificaciones del Portal*", help="A este correo enviaremos el código de verificación y la copia final del documento.", value=st.session_state.form_data_cache.get('correo_promo', ''))
             with col2:
                 nombre_comercial = st.text_input("Nombre Comercial*", value=st.session_state.form_data_cache.get('nombre_comercial', ''))
                 ciudad = st.text_input("Ciudad*", value=st.session_state.form_data_cache.get('ciudad', ''))
-                # --- MODIFICACIÓN: Se cambia la etiqueta del correo original ---
                 correo = st.text_input("Correo para Facturación Electrónica*", help="Correo para recibir facturas y documentos contables.", value=st.session_state.form_data_cache.get('correo', ''))
                 celular = st.text_input("Celular", value=st.session_state.form_data_cache.get('celular', ''))
             
@@ -449,7 +572,6 @@ else: # --- Etapa de llenado de formulario ---
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_j")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                # --- MODIFICACIÓN: Se añade 'correo_promo' a la validación de campos obligatorios ---
                 if not all([razon_social, nit, correo, correo_promo, rep_legal, cedula_rep_legal, ciudad, nombre_comercial, lugar_exp_id_rep]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * son obligatorios y la firma no puede estar vacía.")
                 else:
@@ -457,7 +579,6 @@ else: # --- Etapa de llenado de formulario ---
                         'client_type': 'juridica', 'razon_social': razon_social,
                         'nombre_comercial': nombre_comercial, 'nit': nit, 'direccion': direccion,
                         'ciudad': ciudad, 'telefono': telefono, 'celular': celular, 'correo': correo,
-                        # --- MODIFICACIÓN: Se guarda el nuevo correo ---
                         'correo_promo': correo_promo,
                         'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep_legal, 'tipo_id': tipo_id_rep,
                         'lugar_exp_id': lugar_exp_id_rep,
@@ -477,10 +598,8 @@ else: # --- Etapa de llenado de formulario ---
                 cedula_natural = st.text_input("C.C.*", value=st.session_state.form_data_cache.get('cedula_natural', ''))
                 direccion_natural = st.text_input("Dirección de Residencia*", value=st.session_state.form_data_cache.get('direccion', ''))
                 telefono_natural = st.text_input("Teléfono / Celular*", value=st.session_state.form_data_cache.get('telefono', ''))
-                 # --- MODIFICACIÓN: Se añade el nuevo campo de correo con una etiqueta clara ---
                 correo_promo_natural = st.text_input("Correo para Promociones y Notificaciones del Portal*", help="A este correo enviaremos el código de verificación y la copia final del documento.", value=st.session_state.form_data_cache.get('correo_promo', ''))
             with col2:
-                # --- MODIFICACIÓN: Se cambia la etiqueta del correo original ---
                 correo_natural = st.text_input("Correo para Facturación Electrónica*", help="Correo para recibir facturas y documentos contables.", value=st.session_state.form_data_cache.get('correo', ''))
                 ciudad_natural = st.text_input("Ciudad de Residencia*", value=st.session_state.form_data_cache.get('ciudad', ''))
                 default_tipo_id_nat = st.session_state.form_data_cache.get('tipo_id', "C.C.")
@@ -500,7 +619,6 @@ else: # --- Etapa de llenado de formulario ---
             canvas_result = st_canvas(fill_color="#FFFFFF", stroke_width=3, stroke_color="#000000", height=200, key="canvas_n")
             
             if st.form_submit_button("Enviar y Solicitar Código de Verificación", use_container_width=True):
-                # --- MODIFICACIÓN: Se añade 'correo_promo_natural' a la validación ---
                 if not all([nombre_natural, cedula_natural, correo_natural, correo_promo_natural, telefono_natural, fecha_nacimiento, direccion_natural, lugar_exp_id_nat, ciudad_natural]) or canvas_result.image_data is None or np.all(canvas_result.image_data == 255):
                     st.warning("⚠️ Los campos marcados con * y la firma son obligatorios.")
                 else:
@@ -508,7 +626,6 @@ else: # --- Etapa de llenado de formulario ---
                         'client_type': 'natural', 'nombre_natural': nombre_natural,
                         'cedula_natural': cedula_natural, 'tipo_id': tipo_id_nat, 'lugar_exp_id': lugar_exp_id_nat,
                         'direccion': direccion_natural, 'correo': correo_natural, 'telefono': telefono_natural,
-                        # --- MODIFICACIÓN: Se guarda el nuevo correo con una clave consistente ('correo_promo') ---
                         'correo_promo': correo_promo_natural,
                         'ciudad': ciudad_natural,
                         'firma_img_pil': Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA'),
@@ -516,31 +633,24 @@ else: # --- Etapa de llenado de formulario ---
                     }
                     st.session_state.final_razon_social = nombre_natural
 
-    # --- CORRECCIÓN 1: LÓGICA DE PROCESAMIENTO MEJORADA ---
-    # Este bloque ahora maneja correctamente el éxito y el fracaso del envío de correo.
     if form_data_to_process:
         with st.spinner("Generando y enviando código de verificación... Por favor, espere."):
             st.session_state.form_data_cache = form_data_to_process
             code = str(random.randint(100000, 999999))
             st.session_state.generated_code = code
             email_body = f"""<h3>Su Código de Verificación para Ferreinox</h3>
-                                <p>Hola,</p>
-                                <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
-                                <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
-                                <p>Este código es válido por un tiempo limitado.</p>
-                                <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>
-                                <br>
-                                <p>Atentamente,</p>
-                                <p><b>Ferreinox S.A.S. BIC</b></p>"""
+                                 <p>Hola,</p>
+                                 <p>Use el siguiente código para verificar su firma y completar el proceso de vinculación:</p>
+                                 <h2 style='text-align:center; letter-spacing: 5px;'>{code}</h2>
+                                 <p>Este código es válido por un tiempo limitado.</p>
+                                 <p>Si usted no solicitó este código, puede ignorar este mensaje.</p>
+                                 <br>
+                                 <p>Atentamente,</p>
+                                 <p><b>Ferreinox S.A.S. BIC</b></p>"""
             
-            # --- MODIFICACIÓN: Enviar correo de verificación al NUEVO correo de notificaciones ---
             correo_notificaciones = form_data_to_process['correo_promo']
             email_sent = send_email(correo_notificaciones, "Su Código de Verificación - Ferreinox", email_body)
             
             if email_sent:
                 st.session_state.verification_code_sent = True
-                # Si el correo se envía exitosamente, se refresca la página para mostrar el campo de verificación.
                 st.rerun()
-            # Si el correo falla (email_sent es False), la función send_email() ya habrá mostrado un st.error().
-            # El programa no hace 'rerun', por lo que el usuario verá el error en la página del formulario
-            # y podrá corregir el correo o contactar a soporte sin perder los datos que ya llenó.
