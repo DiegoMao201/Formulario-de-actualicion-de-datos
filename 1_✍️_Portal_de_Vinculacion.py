@@ -728,7 +728,12 @@ elif st.session_state.step == 4:
                         # Drive
                         meta = {'name': f"AUTORIZACION_{doc_id}.pdf", 'parents': [st.secrets["drive_folder_id"]]}
                         media = MediaFileUpload(pdf_path, mimetype='application/pdf')
-                        f = drive.files().create(body=meta, media_body=media, fields='webViewLink').execute()
+                        f = drive.files().create(
+                            body=meta,
+                            media_body=media,
+                            fields='webViewLink',
+                            supportsAllDrives=True
+                        ).execute()
                         st.session_state.final_url = f.get('webViewLink')
                         
                         # Email Final
