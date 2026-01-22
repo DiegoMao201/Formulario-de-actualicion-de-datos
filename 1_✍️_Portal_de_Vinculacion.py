@@ -17,6 +17,7 @@ import numpy as np
 import random
 import pytz
 import base64
+from xml.sax.saxutils import escape
 
 # --- ReportLab Imports (Para generar el PDF) ---
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
@@ -310,11 +311,16 @@ class PDFGeneratorPlatypus:
             ]
             signer, id_signer = self.data['rep_legal'], self.data['nit']
         else:
+            def safe_text(val):
+                if not val:
+                    return ""
+                return escape(str(val))
+            
             d = [
-                [Paragraph("Nombre Completo:", self.style_table_header), Paragraph(self.data.get('nombre_natural'), self.style_body), Paragraph("Cédula:", self.style_table_header), Paragraph(self.data.get('cedula_natural'), self.style_body)],
-                [Paragraph("Dirección:", self.style_table_header), Paragraph(self.data.get('direccion'), self.style_body), Paragraph("Ciudad:", self.style_table_header), Paragraph(self.data.get('ciudad'), self.style_body)],
-                [Paragraph("Email Personal:", self.style_table_header), Paragraph(self.data.get('correo'), self.style_body), Paragraph("Celular:", self.style_table_header), Paragraph(self.data.get('telefono'), self.style_body)],
-                [Paragraph("Fecha Nacimiento:", self.style_table_header), Paragraph(str(self.data.get('fecha_nacimiento')), self.style_body), "", ""]
+                [Paragraph("Nombre Completo:", self.style_table_header), Paragraph(safe_text(self.data.get('nombre_natural')), self.style_body), Paragraph("Cédula:", self.style_table_header), Paragraph(safe_text(self.data.get('cedula_natural')), self.style_body)],
+                [Paragraph("Dirección:", self.style_table_header), Paragraph(safe_text(self.data.get('direccion')), self.style_body), Paragraph("Ciudad:", self.style_table_header), Paragraph(safe_text(self.data.get('ciudad')), self.style_body)],
+                [Paragraph("Email Personal:", self.style_table_header), Paragraph(safe_text(self.data.get('correo')), self.style_body), Paragraph("Celular:", self.style_table_header), Paragraph(safe_text(self.data.get('telefono')), self.style_body)],
+                [Paragraph("Fecha Nacimiento:", self.style_table_header), Paragraph(safe_text(str(self.data.get('fecha_nacimiento'))), self.style_body), "", ""]
             ]
             signer, id_signer = self.data['nombre_natural'], self.data['cedula_natural']
             
