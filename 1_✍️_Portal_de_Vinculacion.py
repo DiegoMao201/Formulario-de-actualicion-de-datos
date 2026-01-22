@@ -465,21 +465,34 @@ if st.session_state.step == 1:
     st.markdown('<div class="section-title">POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES</div>', unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div class="legal-scroll-box">
+    <div style="
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        border-top: 6px solid {COLOR_PRIMARY};
+        padding: 2rem 2.5rem;
+        margin-bottom: 1.5rem;
+        font-family: 'Roboto', Arial, sans-serif;
+        color: {COLOR_TEXT};
+        font-size: 1.05rem;
+        line-height: 1.7;
+        max-height: 350px;
+        overflow-y: auto;
+    ">
         <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, informa que es responsable del tratamiento de sus datos personales. De conformidad con lo dispuesto en la <b>Ley Estatutaria 1581 de 2012</b>, el <b>Decreto Reglamentario 1377 de 2013</b> y demás normas concordantes, solicitamos su autorización libre, previa, expresa e informada para continuar con el tratamiento de sus datos.</p>
         
-        <h4>1. FINALIDADES DEL TRATAMIENTO</h4>
+        <h4 style="color:{COLOR_PRIMARY}; margin-top:0;">1. FINALIDADES DEL TRATAMIENTO</h4>
         <p>Los datos suministrados serán utilizados para:</p>
-        <ul>
+        <ul style="margin-bottom:1.2rem;">
             <li>El desarrollo de la relación comercial, contractual y contable (facturación, cobranza, despachos).</li>
             <li>La consulta y reporte ante centrales de riesgo financiero (Datacrédito, CIFIN) para el estudio de crédito y comportamiento de pago (Ley 1266 de 2008).</li>
             <li>El envío de información sobre novedades, productos, promociones y eventos de FERREINOX S.A.S. BIC.</li>
             <li>La implementación de procesos de facturación electrónica conforme a las exigencias de la DIAN.</li>
         </ul>
 
-        <h4>2. DERECHOS DEL TITULAR (Habeas Data)</h4>
+        <h4 style="color:{COLOR_PRIMARY};">2. DERECHOS DEL TITULAR (Habeas Data)</h4>
         <p>Como titular de la información, usted tiene derecho a:</p>
-        <ul>
+        <ul style="margin-bottom:1.2rem;">
             <li>Acceder de forma gratuita a sus datos personales.</li>
             <li>Solicitar la actualización y rectificación de sus datos frente a información parcial, inexacta o incompleta.</li>
             <li>Solicitar prueba de la autorización otorgada.</li>
@@ -487,10 +500,13 @@ if st.session_state.step == 1:
             <li>Revocar la autorización y/o solicitar la supresión del dato cuando no se respeten los principios constitucionales.</li>
         </ul>
 
-        <h4>3. NOTIFICACIONES Y MEDIOS ELECTRÓNICOS</h4>
+        <h4 style="color:{COLOR_PRIMARY};">3. NOTIFICACIONES Y MEDIOS ELECTRÓNICOS</h4>
         <p>El titular autoriza expresamente a FERREINOX S.A.S. BIC para que le notifique cualquier información relacionada con el estado de su crédito o mora previo al reporte negativo en centrales de riesgo al correo electrónico y celular suministrados en este formulario.</p>
-        
-        <p>Para conocer nuestra Política de Privacidad completa, visite <a href="https://www.ferreinox.co" target="_blank">www.ferreinox.co</a>.</p>
+
+        <p style="margin-top:1.5rem;">
+            Para conocer nuestra <b>Política de Privacidad</b> completa, visite 
+            <a href="https://www.ferreinox.co" target="_blank" style="color:{COLOR_PRIMARY}; font-weight:bold; text-decoration:underline;">www.ferreinox.co</a>.
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
