@@ -8,3 +8,4 @@ Pillow
 gspread
 pytz
 dropbox
+sendgrid

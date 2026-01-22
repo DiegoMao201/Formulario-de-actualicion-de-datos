@@ -34,6 +34,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 
 # =================================================================================================
 # 1. CONFIGURACIÓN DE PÁGINA Y ESTILOS CSS (MODO INSTITUCIONAL)
@@ -451,6 +453,36 @@ def send_email(to, subject, html, pdf=None, pdf_name=None):
         st.error(f"Error enviando correo: {e}")
         return False
 
+def send_email_sendgrid(to, subject, html, pdf=None, pdf_name=None):
+    api_key = st.secrets["sendgrid"]["api_key"]
+    from_email = st.secrets["sendgrid"]["from_email"]
+    from_name = st.secrets["sendgrid"].get("from_name", "Ferreinox S.A.S. BIC")
+    message = Mail(
+        from_email=(from_email, from_name),
+        to_emails=to,
+        subject=subject,
+        html_content=html
+    )
+    # Adjuntar PDF si existe
+    if pdf and pdf_name:
+        with open(pdf, "rb") as f:
+            data = f.read()
+        encoded = base64.b64encode(data).decode()
+        attachedFile = Attachment(
+            FileContent(encoded),
+            FileName(pdf_name),
+            FileType('application/pdf'),
+            Disposition('attachment')
+        )
+        message.attachment = attachedFile
+    try:
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        return response.status_code in [200, 202]
+    except Exception as e:
+        st.error(f"Error enviando correo por SendGrid: {e}")
+        return False
+
 # =================================================================================================
 # 4. FLUJO DE PANTALLAS (STEPS)
 # =================================================================================================
@@ -636,7 +668,7 @@ elif st.session_state.step == 3:
                 </div>
                 """
                 with st.spinner("Enviando código de verificación..."):
-                    if send_email(correo, "Código de Verificación - Ferreinox", html_otp):
+                    if send_email_sendgrid(correo, "Código de Verificación - Ferreinox", html_otp):
                         st.session_state.step = 4
                         st.rerun()
                     else:
@@ -705,7 +737,7 @@ elif st.session_state.step == 4:
                             <p>Adjunto encontrará el PDF firmado para su archivo.</p>
                         </div>
                         """
-                        send_email(email_dest, "Confirmación Vinculación - Ferreinox", html_end, pdf_path, f"Autorizacion_{doc_id}.pdf")
+                        send_email_sendgrid(email_dest, "Confirmación Vinculación - Ferreinox", html_end, pdf_path, f"Autorizacion_{doc_id}.pdf")
                         
                         st.session_state.step = 5
                         st.rerun()
