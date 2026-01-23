@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # =================================================================================================
 # PLATAFORMA CORPORATIVA DE ACTUALIZACIÓN DE DATOS - FERREINOX S.A.S. BIC
-# Versión: 21.0 (Corrección de Renderizado HTML + Política Legal Ampliada)
+# Versión: 22.0 (Motor PDF Corporativo High-End + UI Optimizada)
 # Fecha: 22 de Enero de 2026
 # Autor: GM-DATOVATE & Gemini AI
 # =================================================================================================
@@ -19,12 +19,12 @@ import pytz
 import base64
 from xml.sax.saxutils import escape
 
-# --- ReportLab Imports (Para generar el PDF) ---
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage
+# --- ReportLab Imports (Motor Gráfico Avanzado) ---
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle, Image as PlatypusImage, NextPageTemplate
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
-from reportlab.lib.units import inch, cm
+from reportlab.lib.units import inch, mm, cm
 from reportlab.lib.pagesizes import letter
 
 # --- Google & Email Imports ---
@@ -52,13 +52,13 @@ st.set_page_config(
 # --- Colores Corporativos ---
 COLOR_PRIMARY = "#0D47A1"       # Azul Institucional Oscuro
 COLOR_SECONDARY = "#1565C0"     # Azul Medio
-COLOR_BG = "#F0F2F6"            # Gris Muy Claro (Fondo)
+COLOR_ACCENT = "#E3F2FD"        # Azul Muy Claro (Fondos PDF)
+COLOR_BG = "#F0F2F6"            # Gris Muy Claro (Fondo Web)
 COLOR_TEXT = "#212121"          # Texto Oscuro
 
 # --- Inyección de CSS Avanzado ---
 st.markdown(f"""
 <style>
-    /* Importar fuente profesional */
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
     
     html, body, [class*="css"] {{
@@ -67,56 +67,54 @@ st.markdown(f"""
         color: {COLOR_TEXT};
     }}
     
-    /* Ocultar elementos nativos de Streamlit */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
     header {{visibility: hidden;}}
     div[data-testid="stSidebarNav"] {{display: none;}}
 
-    /* Encabezado Personalizado */
     .header-container {{
         background: linear-gradient(135deg, {COLOR_PRIMARY} 0%, {COLOR_SECONDARY} 100%);
-        padding: 2.5rem 1rem;
-        border-radius: 0 0 15px 15px;
-        margin-bottom: 2rem;
+        padding: 3rem 1rem;
+        border-radius: 0 0 20px 20px;
+        margin-bottom: 2.5rem;
         text-align: center;
         color: white;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        box-shadow: 0 10px 20px rgba(13, 71, 161, 0.2);
     }}
     .header-title {{
-        font-size: 2.5rem;
-        font-weight: 700;
+        font-size: 2.8rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 2px;
     }}
     .header-subtitle {{
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         font-weight: 300;
-        opacity: 0.95;
+        opacity: 0.9;
     }}
 
-    /* Contenedores tipo Tarjeta */
+    /* Tarjetas y Formularios */
     .stForm, div[data-testid="stVerticalBlock"] > div.element-container {{
         background-color: transparent;
     }}
     
     .card-box {{
         background-color: white;
-        padding: 2.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
+        padding: 3rem;
+        border-radius: 16px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
         border-top: 6px solid {COLOR_PRIMARY};
     }}
 
-    /* Barra de Progreso (Fixed) */
+    /* Pasos de Progreso */
     .progress-wrapper {{
         display: flex;
         justify-content: space-between;
-        margin-bottom: 2rem;
+        margin-bottom: 2.5rem;
         position: relative;
-        padding: 0 20px;
+        padding: 0 30px;
     }}
     .progress-step {{
         text-align: center;
@@ -125,222 +123,266 @@ st.markdown(f"""
         flex: 1;
     }}
     .step-circle {{
-        width: 45px;
-        height: 45px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
-        background-color: #E0E0E0;
-        color: #757575;
+        background-color: #ECEFF1;
+        color: #90A4AE;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 8px auto;
+        margin: 0 auto 10px auto;
         font-weight: bold;
-        transition: all 0.3s ease;
-        border: 3px solid #fff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border: 4px solid #fff;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-size: 1.2rem;
     }}
     .step-label {{
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: #757575;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #90A4AE;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }}
     
-    /* Estado Activo */
     .active .step-circle {{
         background-color: {COLOR_PRIMARY};
         color: white;
-        transform: scale(1.1);
-        box-shadow: 0 4px 8px rgba(13, 71, 161, 0.4);
+        transform: scale(1.15);
+        box-shadow: 0 8px 15px rgba(13, 71, 161, 0.3);
     }}
     .active .step-label {{
         color: {COLOR_PRIMARY};
-        font-weight: 700;
+        font-weight: 800;
     }}
 
-    /* Estilo para Inputs */
+    /* Inputs y Botones */
     div[data-baseweb="input"] > div {{
-        border-radius: 6px;
-        background-color: #FAFAFA;
-        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        background-color: #F8F9FA;
+        border: 1px solid #CFD8DC;
+        padding: 4px;
     }}
     div[data-baseweb="input"] > div:focus-within {{
         border-color: {COLOR_PRIMARY};
         background-color: #FFFFFF;
-        box-shadow: 0 0 0 1px {COLOR_PRIMARY};
+        box-shadow: 0 0 0 2px rgba(13, 71, 161, 0.2);
     }}
     
-    /* Botones */
     .stButton>button {{
         width: 100%;
-        border-radius: 6px;
+        border-radius: 8px;
         border: none;
-        background-color: {COLOR_PRIMARY};
+        background: linear-gradient(90deg, {COLOR_PRIMARY} 0%, {COLOR_SECONDARY} 100%);
         color: white;
-        font-weight: 600;
-        padding: 0.75rem 1rem;
+        font-weight: 700;
+        padding: 0.8rem 1rem;
         font-size: 1rem;
-        transition: all 0.2s;
+        transition: all 0.3s;
         text-transform: uppercase;
+        letter-spacing: 1px;
     }}
     .stButton>button:hover {{
-        background-color: {COLOR_SECONDARY};
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(13, 71, 161, 0.3);
+        transform: translateY(-2px);
         color: white;
     }}
 
-    /* Caja Legal con Scroll */
+    /* Scroll Legal */
     .legal-scroll-box {{
-        height: 350px;
+        height: 400px;
         overflow-y: auto;
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        padding: 20px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        line-height: 1.6;
+        background-color: #F8F9FA;
+        border: 1px solid #E0E0E0;
+        padding: 25px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        line-height: 1.8;
         text-align: justify;
-        color: #495057;
-        margin-bottom: 20px;
+        color: #37474F;
+        margin-bottom: 25px;
     }}
     .legal-scroll-box h4 {{
         color: {COLOR_PRIMARY};
-        margin-top: 15px;
-        margin-bottom: 10px;
-        font-size: 1rem;
-    }}
-    .legal-scroll-box ul {{
-        padding-left: 20px;
+        margin-top: 20px;
+        margin-bottom: 12px;
+        font-size: 1.1rem;
+        font-weight: 700;
     }}
     
-    /* Títulos de Sección dentro de Cards */
     .section-title {{
         color: {COLOR_PRIMARY};
-        font-size: 1.4rem;
-        font-weight: 700;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #f0f0f0;
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #ECEFF1;
+        letter-spacing: -0.5px;
     }}
 
 </style>
 """, unsafe_allow_html=True)
 
 # =================================================================================================
-# 2. SISTEMA DE GENERACIÓN DE PDF Y EMAILS
+# 2. SISTEMA DE GENERACIÓN DE PDF PROFESIONAL (MOTOR ACTUALIZADO)
 # =================================================================================================
 
-class PDFGeneratorPlatypus:
+class CorporatePDFGenerator:
     def __init__(self, data, doc_id):
         self.data = data
         self.doc_id = doc_id
         self.story = []
         
+        # --- Configuración de Estilos ---
         styles = getSampleStyleSheet()
-        self.style_body = ParagraphStyle(name='Body', parent=styles['Normal'], fontName='Helvetica', fontSize=9, alignment=TA_JUSTIFY, leading=13)
-        self.style_body_bold = ParagraphStyle(name='BodyBold', parent=self.style_body, fontName='Helvetica-Bold')
-        self.style_header_title = ParagraphStyle(name='HeaderTitle', parent=styles['h1'], fontName='Helvetica-Bold', fontSize=14, alignment=TA_RIGHT, textColor=colors.HexColor(COLOR_PRIMARY))
-        self.style_header_info = ParagraphStyle(name='HeaderInfo', parent=styles['Normal'], fontName='Helvetica', fontSize=8, alignment=TA_RIGHT, textColor=colors.gray)
-        self.style_section_title = ParagraphStyle(name='SectionTitle', parent=styles['h2'], fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=colors.white, spaceBefore=10, spaceAfter=6, leftIndent=5)
-        self.style_table_header = ParagraphStyle(name='TableHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor("#333333"))
         
-    def _on_page(self, canvas, doc):
+        # Colores
+        self.c_primary = colors.HexColor(COLOR_PRIMARY)
+        self.c_secondary = colors.HexColor(COLOR_SECONDARY)
+        self.c_accent = colors.HexColor(COLOR_ACCENT)
+        self.c_text = colors.HexColor("#2C3E50")
+        self.c_grey_light = colors.HexColor("#F4F6F7")
+        
+        # Estilos de Texto
+        self.s_normal = ParagraphStyle('NormalCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=self.c_text, alignment=TA_JUSTIFY)
+        self.s_label = ParagraphStyle('LabelCorp', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=self.c_primary, textTransform='uppercase')
+        self.s_value = ParagraphStyle('ValueCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=10, textColor=colors.black)
+        self.s_heading = ParagraphStyle('HeadingCorp', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, leading=14, textColor=colors.white, spaceAfter=0)
+        self.s_legal = ParagraphStyle('LegalCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=10, textColor=colors.HexColor("#555555"), alignment=TA_JUSTIFY)
+        self.s_footer = ParagraphStyle('FooterCorp', parent=styles['Normal'], fontName='Helvetica', fontSize=7, leading=9, textColor=colors.gray, alignment=TA_CENTER)
+
+    def _draw_header_footer(self, canvas, doc):
         canvas.saveState()
-        # Header
+        w, h = doc.pagesize
+        
+        # --- HEADER ---
+        # Barra Superior de Color
+        canvas.setFillColor(self.c_primary)
+        canvas.rect(0, h - 25*mm, w, 25*mm, fill=1, stroke=0)
+        
+        # Logo (Simulado o Cargado)
+        logo_path = 'LOGO FERREINOX SAS BIC 2024.png'
         try:
-            logo = PlatypusImage('LOGO FERREINOX SAS BIC 2024.png', width=2.2*inch, height=0.7*inch, hAlign='LEFT')
+            if os.path.exists(logo_path):
+                canvas.drawImage(logo_path, 20*mm, h - 20*mm, width=50*mm, height=15*mm, preserveAspectRatio=True, mask='auto')
+            else:
+                # Fallback Texto Logo
+                canvas.setFont("Helvetica-Bold", 20)
+                canvas.setFillColor(colors.white)
+                canvas.drawString(20*mm, h - 18*mm, "FERREINOX S.A.S. BIC")
         except:
-            logo = Paragraph("<b>FERREINOX S.A.S. BIC</b>", self.style_body_bold)
-            
-        header_data = [[logo, [Paragraph("AUTORIZACIÓN TRATAMIENTO DE DATOS", self.style_header_title), Paragraph(f"Ref: {self.doc_id}<br/>Fecha: {self.data.get('timestamp')}", self.style_header_info)]]]
-        t = Table(header_data, colWidths=[3.5*inch, 3.5*inch])
-        t.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('ALIGN', (1,0), (1,0), 'RIGHT')]))
-        w, h = t.wrap(doc.width, doc.topMargin)
-        t.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h)
+            pass
+
+        # Título del Documento en Header
+        canvas.setFont("Helvetica-Bold", 14)
+        canvas.setFillColor(colors.white)
+        canvas.drawRightString(w - 20*mm, h - 12*mm, "AUTORIZACIÓN Y VINCULACIÓN")
         
-        # Linea
-        canvas.setStrokeColor(colors.HexColor(COLOR_PRIMARY))
-        canvas.setLineWidth(2)
-        canvas.line(doc.leftMargin, doc.height + doc.topMargin - h - 10, doc.leftMargin + doc.width, doc.height + doc.topMargin - h - 10)
+        canvas.setFont("Helvetica", 9)
+        canvas.setFillColor(colors.white)
+        canvas.drawRightString(w - 20*mm, h - 17*mm, f"Ref: {self.doc_id}")
+        canvas.drawRightString(w - 20*mm, h - 21*mm, f"Fecha: {self.data.get('timestamp')}")
+
+        # --- FOOTER ---
+        # Línea divisoria
+        canvas.setStrokeColor(self.c_primary)
+        canvas.setLineWidth(0.5)
+        canvas.line(20*mm, 20*mm, w - 20*mm, 20*mm)
         
-        # Footer
+        # Texto Legal Footer
+        footer_text = "Ferreinox S.A.S. BIC | NIT. 800.224.617-8 | Documento Firmado Digitalmente bajo Ley 527 de 1999"
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.gray)
-        canvas.drawCentredString(doc.width/2 + doc.leftMargin, 0.5*inch, "Ferreinox S.A.S. BIC | NIT. 800.224.617-8 | Pereira, Colombia | www.ferreinox.co")
-        canvas.drawRightString(doc.width + doc.leftMargin, 0.5*inch, f"Página {doc.page}")
+        canvas.drawCentredString(w/2, 15*mm, footer_text)
+        canvas.drawCentredString(w/2, 12*mm, "www.ferreinox.co | Pereira, Risaralda, Colombia")
+        
+        # Paginación
+        canvas.drawRightString(w - 20*mm, 15*mm, f"Pág. {doc.page}")
+
         canvas.restoreState()
 
-    def _create_section(self, title, doc):
-        t = Table([[Paragraph(title.upper(), self.style_section_title)]], colWidths=[doc.width])
-        t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor(COLOR_PRIMARY)), ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3)]))
+    def _create_section_header(self, title):
+        # Crear una tabla para el título de la sección con fondo de color
+        data = [[Paragraph(title.upper(), self.s_heading)]]
+        t = Table(data, colWidths=[190*mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), self.c_secondary),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('ROUNDEDCORNERS', [4, 4, 4, 4]) # Esquinas redondeadas (Reportlab moderno)
+        ]))
         return t
 
-    def _add_legal_text(self, nombre, id_num, tipo_cli):
-        self.story.append(Paragraph(f"Yo, <b>{nombre}</b>, identificado(a) con C.C./NIT <b>{id_num}</b>, actuando en nombre propio o en representación legal de la entidad citada en este documento (en adelante 'EL TITULAR'), autorizo de manera previa, expresa e informada a <b>FERREINOX S.A.S. BIC</b>:", self.style_body))
-        self.story.append(Spacer(1, 0.1*inch))
+    def _create_data_grid(self):
+        # Preparar datos
+        d = self.data
+        if d['client_type'] == 'juridica':
+            grid_data = [
+                [Paragraph("RAZÓN SOCIAL", self.s_label), Paragraph(d.get('razon_social', ''), self.s_value), Paragraph("NIT", self.s_label), Paragraph(d.get('nit', ''), self.s_value)],
+                [Paragraph("DIRECCIÓN", self.s_label), Paragraph(d.get('direccion', ''), self.s_value), Paragraph("CIUDAD", self.s_label), Paragraph(d.get('ciudad', ''), self.s_value)],
+                [Paragraph("EMAIL FACTURACIÓN", self.s_label), Paragraph(d.get('correo', ''), self.s_value), Paragraph("TELÉFONO/MÓVIL", self.s_label), Paragraph(f"{d.get('telefono', '')} / {d.get('celular', '')}", self.s_value)],
+                [Paragraph("REP. LEGAL", self.s_label), Paragraph(d.get('rep_legal', ''), self.s_value), Paragraph("C.C. REP. LEGAL", self.s_label), Paragraph(d.get('cedula_rep_legal', ''), self.s_value)],
+            ]
+        else:
+            def safe_txt(k): return str(d.get(k, ''))
+            grid_data = [
+                [Paragraph("NOMBRE COMPLETO", self.s_label), Paragraph(safe_txt('nombre_natural'), self.s_value), Paragraph("CÉDULA", self.s_label), Paragraph(safe_txt('cedula_natural'), self.s_value)],
+                [Paragraph("DIRECCIÓN", self.s_label), Paragraph(safe_txt('direccion'), self.s_value), Paragraph("CIUDAD", self.s_label), Paragraph(safe_txt('ciudad'), self.s_value)],
+                [Paragraph("EMAIL PERSONAL", self.s_label), Paragraph(safe_txt('correo'), self.s_value), Paragraph("CELULAR", self.s_label), Paragraph(safe_txt('telefono'), self.s_value)],
+                [Paragraph("FECHA NACIMIENTO", self.s_label), Paragraph(safe_txt('fecha_nacimiento'), self.s_value), Paragraph("", self.s_label), Paragraph("", self.s_value)],
+            ]
+
+        # Configurar Tabla Grilla
+        col_w = [35*mm, 60*mm, 35*mm, 60*mm]
+        t = Table(grid_data, colWidths=col_w)
+        
+        style = [
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('BACKGROUND', (0,0), (0,-1), self.c_accent), # Columna Labels 1
+            ('BACKGROUND', (2,0), (2,-1), self.c_accent), # Columna Labels 2
+            ('GRID', (0,0), (-1,-1), 0.5, colors.white),  # Líneas blancas para separar
+            ('LINEBELOW', (0,0), (-1,-1), 1, self.c_grey_light),
+            ('PADDING', (0,0), (-1,-1), 6),
+        ]
+        t.setStyle(TableStyle(style))
+        return t
+
+    def _create_legal_columns(self):
+        # Texto legal en dos columnas para mayor profesionalismo
         
         clauses = [
-            "<b>1. TRATAMIENTO DE DATOS (LEY 1581 DE 2012):</b> Recolectar, almacenar, usar y circular mis datos personales para fines comerciales, contables, logísticos y de mercadeo. Conozco que tengo derecho a conocer, actualizar, rectificar y suprimir mis datos, así como a revocar esta autorización.",
-            "<b>2. CONSULTA EN CENTRALES DE RIESGO (LEY 1266 DE 2008):</b> Consultar, reportar y procesar mi comportamiento crediticio, financiero y comercial ante centrales de riesgo (Datacrédito, Cifin, Procrédito, etc.) con fines de análisis de riesgo crediticio.",
-            "<b>3. FACTURACIÓN ELECTRÓNICA:</b> Autorizo el envío de facturas electrónicas y notas crédito/débito al correo electrónico suministrado en este formulario, dándolo por notificado conforme al Decreto 2242 de 2015.",
-            "<b>4. DECLARACIÓN DE ORIGEN DE FONDOS:</b> Declaro que los recursos de mi actividad provienen de actividades lícitas y no tienen relación con lavado de activos o financiación del terrorismo."
+            "<b>1. TRATAMIENTO DE DATOS PERSONALES (LEY 1581 DE 2012):</b> Autorizo a FERREINOX S.A.S. BIC para recolectar, almacenar, usar, circular y suprimir mis datos personales. Estos serán usados para fines de la relación comercial, contable, tributaria y de mercadeo. Conozco que tengo derecho a conocer, actualizar y rectificar mis datos.",
+            "<b>2. REPORTE EN CENTRALES DE RIESGO:</b> Autorizo de manera irrevocable, expresa e informada a FERREINOX S.A.S. BIC para consultar, reportar, procesar y divulgar a las Centrales de Información Financiera (como Datacrédito, Cifin, etc.) todo lo referente a mi comportamiento crediticio, comercial y financiero, positivo o negativo.",
+            "<b>3. FACTURACIÓN ELECTRÓNICA:</b> Acepto recibir facturas electrónicas, notas débito y crédito al correo electrónico registrado en este formulario, conforme a la normatividad vigente de la DIAN (Decreto 2242 de 2015 y normas que lo modifiquen).",
+            "<b>4. ORIGEN DE FONDOS (SAGRILAFT):</b> Declaro bajo la gravedad de juramento que los recursos que poseo y los que utilizo en mis operaciones comerciales provienen de actividades lícitas y no tienen relación alguna con lavado de activos, financiación del terrorismo ni ninguna otra actividad delictiva.",
+            "<b>5. VIGENCIA:</b> La presente autorización permanecerá vigente mientras subsista alguna relación comercial o legal con FERREINOX S.A.S. BIC y por el término necesario para fines legales y de auditoría."
         ]
         
-        for c in clauses:
-            self.story.append(Paragraph(c, self.style_body))
-            self.story.append(Spacer(1, 0.08*inch))
+        story_left = []
+        story_right = []
+        
+        for i, clause in enumerate(clauses):
+            p = Paragraph(clause, self.s_legal)
+            if i < 3:
+                story_left.append(p)
+                story_left.append(Spacer(1, 4))
+            else:
+                story_right.append(p)
+                story_right.append(Spacer(1, 4))
+                
+        data = [[story_left, story_right]]
+        t = Table(data, colWidths=[92*mm, 92*mm])
+        t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING', (0,0), (0,0), 0),
+            ('RIGHTPADDING', (1,0), (1,0), 0),
+        ]))
+        return t
 
-    def generate(self):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as f:
-            path = f.name
-            
-        doc = BaseDocTemplate(path, pagesize=letter, leftMargin=0.8*inch, rightMargin=0.8*inch, topMargin=1.5*inch, bottomMargin=1*inch)
-        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
-        doc.addPageTemplates([PageTemplate(id='main', frames=[frame], onPage=self._on_page)])
-        
-        # Section 1: Data
-        self.story.append(self._create_section("I. Información del Titular", doc))
-        self.story.append(Spacer(1, 0.15*inch))
-        
-        if self.data['client_type'] == 'juridica':
-            d = [
-                [Paragraph("Razón Social:", self.style_table_header), Paragraph(self.data.get('razon_social'), self.style_body), Paragraph("NIT:", self.style_table_header), Paragraph(self.data.get('nit'), self.style_body)],
-                [Paragraph("Dirección:", self.style_table_header), Paragraph(self.data.get('direccion'), self.style_body), Paragraph("Ciudad:", self.style_table_header), Paragraph(self.data.get('ciudad'), self.style_body)],
-                [Paragraph("Email Facturación:", self.style_table_header), Paragraph(self.data.get('correo'), self.style_body), Paragraph("Teléfono:", self.style_table_header), Paragraph(f"{self.data.get('telefono')} / {self.data.get('celular')}", self.style_body)],
-                [Paragraph("Rep. Legal:", self.style_table_header), Paragraph(self.data.get('rep_legal'), self.style_body), Paragraph("C.C. Rep. Legal:", self.style_table_header), Paragraph(self.data.get('cedula_rep_legal'), self.style_body)],
-            ]
-            signer, id_signer = self.data['rep_legal'], self.data['nit']
-        else:
-            def safe_text(val):
-                if not val:
-                    return ""
-                return escape(str(val))
-            
-            d = [
-                [Paragraph("Nombre Completo:", self.style_table_header), Paragraph(safe_text(self.data.get('nombre_natural')), self.style_body), Paragraph("Cédula:", self.style_table_header), Paragraph(safe_text(self.data.get('cedula_natural')), self.style_body)],
-                [Paragraph("Dirección:", self.style_table_header), Paragraph(safe_text(self.data.get('direccion')), self.style_body), Paragraph("Ciudad:", self.style_table_header), Paragraph(safe_text(self.data.get('ciudad')), self.style_body)],
-                [Paragraph("Email Personal:", self.style_table_header), Paragraph(safe_text(self.data.get('correo')), self.style_body), Paragraph("Celular:", self.style_table_header), Paragraph(safe_text(self.data.get('telefono')), self.style_body)],
-                [Paragraph("Fecha Nacimiento:", self.style_table_header), Paragraph(safe_text(str(self.data.get('fecha_nacimiento'))), self.style_body), "", ""]
-            ]
-            signer, id_signer = self.data['nombre_natural'], self.data['cedula_natural']
-            
-        t_data = Table(d, colWidths=[1.2*inch, 2.3*inch, 1.2*inch, 2.2*inch])
-        t_data.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.lightgrey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke), ('BACKGROUND', (2,0), (2,-1), colors.whitesmoke), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('PADDING', (0,0), (-1,-1), 5)]))
-        self.story.append(t_data)
-        
-        self.story.append(Spacer(1, 0.3*inch))
-        
-        # Section 2: Legal
-        self.story.append(self._create_section("II. Autorizaciones Legales", doc))
-        self.story.append(Spacer(1, 0.15*inch))
-        self._add_legal_text(signer, id_signer, self.data['client_type'])
-        
-        # Section 3: Signature
-        self.story.append(Spacer(1, 0.3*inch))
-        self.story.append(self._create_section("III. Firma Electrónica", doc))
-        self.story.append(Spacer(1, 0.2*inch))
-        
-        # Process Image
+    def _create_signature_box(self):
+        # Procesar Imagen
         img_temp = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tf:
@@ -353,27 +395,83 @@ class PDFGeneratorPlatypus:
             else:
                 pil_img.save(img_temp)
             
-            sig_img = PlatypusImage(img_temp, width=2.5*inch, height=1*inch)
-            sig_text = f"<b>Firmado Digitalmente por:</b><br/>{signer}<br/>ID: {id_signer}<br/>Fecha: {self.data['timestamp']}<br/>Hash: {self.doc_id}<br/><i>Validado vía Token OTP</i>"
-            
-            t_sig = Table([[sig_img, Paragraph(sig_text, self.style_body)]], colWidths=[2.6*inch, 4*inch])
-            t_sig.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'CENTER'), ('BOX', (0,0), (0,0), 0.5, colors.black)]))
-            self.story.append(t_sig)
-            
-        except Exception:
-            self.story.append(Paragraph("Error procesando imagen de firma.", self.style_body))
+            sig_img = PlatypusImage(img_temp, width=40*mm, height=20*mm)
+        except:
+            sig_img = Paragraph("[Error Imagen]", self.s_normal)
+
+        # Datos de Firma
+        signer = self.data['rep_legal'] if self.data['client_type'] == 'juridica' else self.data['nombre_natural']
+        id_signer = self.data['nit'] if self.data['client_type'] == 'juridica' else self.data['cedula_natural']
         
-        self.story.append(Spacer(1, 0.2*inch))
-        self.story.append(Paragraph("Este documento cumple con los requisitos de validez de la Ley 527 de 1999 de Comercio Electrónico.", ParagraphStyle('Tiny', parent=self.style_body, fontSize=7, alignment=TA_CENTER)))
+        sig_details = [
+            Paragraph(f"<b>FIRMADO POR:</b> {signer}", self.s_normal),
+            Paragraph(f"<b>ID/NIT:</b> {id_signer}", self.s_normal),
+            Paragraph(f"<b>FECHA:</b> {self.data['timestamp']}", self.s_normal),
+            Paragraph(f"<b>HASH SEGURO:</b> {self.doc_id}", self.s_normal),
+            Paragraph(f"<b>VALIDACIÓN:</b> OTP Token Verificado", self.s_normal),
+        ]
         
+        # Tabla de Firma Estilo "Certificado"
+        data = [[sig_img, sig_details]]
+        t = Table(data, colWidths=[60*mm, 120*mm])
+        t.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('BOX', (0,0), (-1,-1), 1, self.c_primary), # Borde Azul
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FAFAFA")),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]))
+        
+        return t, img_temp
+
+    def generate(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as f:
+            path = f.name
+            
+        doc = BaseDocTemplate(path, pagesize=letter, 
+                              topMargin=30*mm, bottomMargin=25*mm, 
+                              leftMargin=20*mm, rightMargin=20*mm)
+        
+        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+        doc.addPageTemplates([PageTemplate(id='main', frames=[frame], onPage=self._draw_header_footer)])
+        
+        # --- Construcción del Contenido ---
+        
+        # Sección 1: Datos del Titular
+        self.story.append(self._create_section_header("I. INFORMACIÓN DEL TITULAR"))
+        self.story.append(Spacer(1, 5*mm))
+        self.story.append(self._create_data_grid())
+        self.story.append(Spacer(1, 8*mm))
+        
+        # Sección 2: Autorizaciones Legales
+        self.story.append(self._create_section_header("II. AUTORIZACIONES Y DECLARACIONES"))
+        self.story.append(Spacer(1, 2*mm))
+        self.story.append(Paragraph("Yo, el titular de la información, actuando en nombre propio o en representación legal de la entidad descrita en la Sección I, otorgo las siguientes autorizaciones:", self.s_normal))
+        self.story.append(Spacer(1, 4*mm))
+        self.story.append(self._create_legal_columns()) # Texto en 2 columnas
+        self.story.append(Spacer(1, 8*mm))
+        
+        # Sección 3: Firma Electrónica
+        self.story.append(self._create_section_header("III. CERTIFICADO DE FIRMA ELECTRÓNICA"))
+        self.story.append(Spacer(1, 5*mm))
+        
+        sig_table, img_path = self._create_signature_box()
+        self.story.append(sig_table)
+        
+        self.story.append(Spacer(1, 5*mm))
+        legal_footer = "Este documento electrónico tiene plena validez jurídica y probatoria de conformidad con la Ley 527 de 1999."
+        self.story.append(Paragraph(legal_footer, ParagraphStyle('Tiny', parent=self.s_normal, fontSize=6, alignment=TA_CENTER, textColor=colors.gray)))
+
         try:
             doc.build(self.story)
             return path
         finally:
-            if img_temp and os.path.exists(img_temp): os.unlink(img_temp)
+            if img_path and os.path.exists(img_path): os.unlink(img_path)
 
 # =================================================================================================
-# 3. LÓGICA DE APLICACIÓN
+# 3. LÓGICA DE APLICACIÓN (MANTENIDA Y OPTIMIZADA)
 # =================================================================================================
 
 def init_state():
@@ -391,16 +489,13 @@ def render_header():
     </div>
     """, unsafe_allow_html=True)
 
-# --- FUNCIÓN CORREGIDA PARA LA BARRA DE PROGRESO ---
 def render_progress():
     s = st.session_state.step
-    # Definimos las clases 'active' basadas en el paso actual
     c1 = "active" if s >= 1 else ""
     c2 = "active" if s >= 2 else ""
     c3 = "active" if s >= 3 else ""
     c4 = "active" if s >= 4 else ""
     
-    # HTML Sólido sin roturas
     html = f"""
     <div class="progress-wrapper">
         <div class="progress-step {c1}">
@@ -435,53 +530,29 @@ def get_services():
         st.error(f"Error de conexión con Google: {e}")
         return None, None
 
-def send_email(to, subject, html, pdf=None, pdf_name=None):
-    try:
-        creds = st.secrets["email_credentials"]
-        msg = MIMEMultipart()
-        msg['From'] = f"Legal Ferreinox <{creds['smtp_user']}>"
-        msg['To'] = to
-        msg['Subject'] = subject
-        msg.attach(MIMEText(html, 'html'))
-        
-        if pdf:
-            with open(pdf, "rb") as f:
-                att = MIMEApplication(f.read(), Name=pdf_name)
-            att['Content-Disposition'] = f'attachment; filename="{pdf_name}"'
-            msg.attach(att)
-            
-        ctx = smtplib.ssl.create_default_context()
-        with smtplib.SMTP_SSL(creds['smtp_server'], int(creds['smtp_port']), context=ctx) as server:
-            server.login(creds['smtp_user'], creds['smtp_password'])
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        st.error(f"Error enviando correo: {e}")
-        return False
-
 def send_email_sendgrid(to, subject, html, pdf=None, pdf_name=None):
-    api_key = st.secrets["sendgrid"]["api_key"]
-    from_email = st.secrets["sendgrid"]["from_email"]
-    from_name = st.secrets["sendgrid"].get("from_name", "Ferreinox S.A.S. BIC")
-    message = Mail(
-        from_email=(from_email, from_name),
-        to_emails=to,
-        subject=subject,
-        html_content=html
-    )
-    # Adjuntar PDF si existe
-    if pdf and pdf_name:
-        with open(pdf, "rb") as f:
-            data = f.read()
-        encoded = base64.b64encode(data).decode()
-        attachedFile = Attachment(
-            FileContent(encoded),
-            FileName(pdf_name),
-            FileType('application/pdf'),
-            Disposition('attachment')
-        )
-        message.attachment = attachedFile
     try:
+        api_key = st.secrets["sendgrid"]["api_key"]
+        from_email = st.secrets["sendgrid"]["from_email"]
+        from_name = st.secrets["sendgrid"].get("from_name", "Ferreinox S.A.S. BIC")
+        message = Mail(
+            from_email=(from_email, from_name),
+            to_emails=to,
+            subject=subject,
+            html_content=html
+        )
+        if pdf and pdf_name:
+            with open(pdf, "rb") as f:
+                data = f.read()
+            encoded = base64.b64encode(data).decode()
+            attachedFile = Attachment(
+                FileContent(encoded),
+                FileName(pdf_name),
+                FileType('application/pdf'),
+                Disposition('attachment')
+            )
+            message.attachment = attachedFile
+        
         sg = SendGridAPIClient(api_key)
         response = sg.send(message)
         return response.status_code in [200, 202]
@@ -500,51 +571,32 @@ if st.session_state.step < 5:
 # --- PASO 1: TÉRMINOS LEGALES AMPLIADOS ---
 if st.session_state.step == 1:
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">POLÍTICA DE TRATAMIENTO DE DATOS</div>', unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div style="
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-        border-top: 6px solid {COLOR_PRIMARY};
-        padding: 2rem 2.5rem;
-        margin-bottom: 1.5rem;
-        font-family: 'Roboto', Arial, sans-serif;
-        color: {COLOR_TEXT};
-        font-size: 1.05rem;
-        line-height: 1.7;
-        max-height: 350px;
-        overflow-y: auto;
-    ">
+    <div class="legal-scroll-box">
         <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, informa que es responsable del tratamiento de sus datos personales. De conformidad con lo dispuesto en la <b>Ley Estatutaria 1581 de 2012</b>, el <b>Decreto Reglamentario 1377 de 2013</b> y demás normas concordantes, solicitamos su autorización libre, previa, expresa e informada para continuar con el tratamiento de sus datos.</p>
         
-        <h4 style="color:{COLOR_PRIMARY}; margin-top:0;">1. FINALIDADES DEL TRATAMIENTO</h4>
+        <h4>1. FINALIDADES DEL TRATAMIENTO</h4>
         <p>Los datos suministrados serán utilizados para:</p>
-        <ul style="margin-bottom:1.2rem;">
+        <ul>
             <li>El desarrollo de la relación comercial, contractual y contable (facturación, cobranza, despachos).</li>
             <li>La consulta y reporte ante centrales de riesgo financiero (Datacrédito, CIFIN) para el estudio de crédito y comportamiento de pago (Ley 1266 de 2008).</li>
             <li>El envío de información sobre novedades, productos, promociones y eventos de FERREINOX S.A.S. BIC.</li>
             <li>La implementación de procesos de facturación electrónica conforme a las exigencias de la DIAN.</li>
         </ul>
 
-        <h4 style="color:{COLOR_PRIMARY};">2. DERECHOS DEL TITULAR (Habeas Data)</h4>
+        <h4>2. DERECHOS DEL TITULAR (Habeas Data)</h4>
         <p>Como titular de la información, usted tiene derecho a:</p>
-        <ul style="margin-bottom:1.2rem;">
+        <ul>
             <li>Acceder de forma gratuita a sus datos personales.</li>
             <li>Solicitar la actualización y rectificación de sus datos frente a información parcial, inexacta o incompleta.</li>
             <li>Solicitar prueba de la autorización otorgada.</li>
-            <li>Presentar quejas ante la Superintendencia de Industria y Comercio (SIC) por infracciones a lo dispuesto en la ley.</li>
             <li>Revocar la autorización y/o solicitar la supresión del dato cuando no se respeten los principios constitucionales.</li>
         </ul>
 
-        <h4 style="color:{COLOR_PRIMARY};">3. NOTIFICACIONES Y MEDIOS ELECTRÓNICOS</h4>
-        <p>El titular autoriza expresamente a FERREINOX S.A.S. BIC para que le notifique cualquier información relacionada con el estado de su crédito o mora previo al reporte negativo en centrales de riesgo al correo electrónico y celular suministrados en este formulario.</p>
-
-        <p style="margin-top:1.5rem;">
-            Para conocer nuestra <b>Política de Privacidad</b> completa, visite 
-            <a href="https://www.ferreinox.co" target="_blank" style="color:{COLOR_PRIMARY}; font-weight:bold; text-decoration:underline;">www.ferreinox.co</a>.
-        </p>
+        <h4>3. DECLARACIONES Y AUTORIZACIONES</h4>
+        <p>El titular manifiesta que la información suministrada es veraz y autoriza la consulta en listas restrictivas y centrales de riesgo.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -576,7 +628,7 @@ elif st.session_state.step == 2:
             st.rerun()
             
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("‹ Volver", type="secondary"):
+    if st.button("‹ Volver"):
         st.session_state.step = 1
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -664,12 +716,14 @@ elif st.session_state.step == 3:
                 st.session_state.otp = otp
                 
                 html_otp = f"""
-                <div style='background:#f4f4f4; padding:20px; font-family:Arial;'>
-                    <div style='background:#fff; padding:20px; border-radius:10px; border-top:5px solid {COLOR_PRIMARY};'>
-                        <h2 style='color:{COLOR_PRIMARY};'>Código de Seguridad</h2>
-                        <p>Para firmar digitalmente el documento de vinculación con Ferreinox S.A.S. BIC, utilice el siguiente código:</p>
-                        <h1 style='letter-spacing:5px; text-align:center;'>{otp}</h1>
-                        <p style='font-size:12px; color:gray;'>Este código expira en 10 minutos.</p>
+                <div style='background:#f4f4f4; padding:20px; font-family:Arial, sans-serif;'>
+                    <div style='background:#fff; padding:30px; border-radius:10px; border-top:6px solid {COLOR_PRIMARY}; max-width:600px; margin:auto;'>
+                        <h2 style='color:{COLOR_PRIMARY}; margin-top:0;'>Código de Seguridad</h2>
+                        <p style='color:#555;'>Para firmar digitalmente su vinculación con <b>Ferreinox S.A.S. BIC</b>, utilice el siguiente código de verificación:</p>
+                        <div style='background:{COLOR_BG}; padding:15px; text-align:center; border-radius:8px; margin:20px 0;'>
+                            <h1 style='letter-spacing:8px; margin:0; color:{COLOR_TEXT};'>{otp}</h1>
+                        </div>
+                        <p style='font-size:12px; color:gray; text-align:center;'>Este código expira en 10 minutos. No lo comparta.</p>
                     </div>
                 </div>
                 """
@@ -700,7 +754,7 @@ elif st.session_state.step == 4:
     
     if st.button("CONFIRMAR Y FIRMAR DOCUMENTO ✅"):
         if input_otp == st.session_state.otp:
-            with st.spinner("Generando contrato, firmando digitalmente y archivando..."):
+            with st.spinner("Generando contrato corporativo, firmando digitalmente y archivando..."):
                 # Preparar Datos
                 tz = pytz.timezone('America/Bogota')
                 ts = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -709,8 +763,8 @@ elif st.session_state.step == 4:
                 uid = st.session_state.form_data['nit'] if st.session_state.client_type == 'juridica' else st.session_state.form_data['cedula_natural']
                 doc_id = f"FER-{datetime.now().strftime('%Y%m%d%H%M')}-{uid}"
                 
-                # Generar PDF
-                gen = PDFGeneratorPlatypus(st.session_state.form_data, doc_id)
+                # --- GENERAR PDF CON LA NUEVA CLASE CORPORATIVA ---
+                gen = CorporatePDFGenerator(st.session_state.form_data, doc_id)
                 pdf_path = gen.generate()
                 
                 # Guardar Google Sheets / Drive
@@ -718,37 +772,41 @@ elif st.session_state.step == 4:
                 if sheet and drive:
                     try:
                         # Sheets
-                        row = [ts, doc_id, st.session_state.client_type, 
-                               st.session_state.form_data.get('razon_social'), st.session_state.form_data.get('nit'),
-                               st.session_state.form_data.get('nombre_natural'), st.session_state.form_data.get('cedula_natural'),
-                               st.session_state.form_data.get('correo'), st.session_state.form_data.get('celular'),
-                               "AUTORIZADO Y FIRMADO"]
+                        row = [
+                            ts, doc_id, 
+                            st.session_state.form_data.get('razon_social', ''),
+                            st.session_state.form_data.get('nit', '') or st.session_state.form_data.get('cedula_natural', ''),
+                            st.session_state.form_data.get('rep_legal', '') or st.session_state.form_data.get('nombre_natural', ''),
+                            st.session_state.form_data.get('correo', ''),
+                            "", "AUTORIZADO", st.session_state.form_data.get('celular', ''), 
+                            "", "FIRMADO", st.session_state.otp,
+                            # Campos extra para completar columnas si existen en tu sheet
+                        ]
+                        # Ajustar longitud de row según tu sheet real si es necesario
                         sheet.append_row(row)
                         
                         # Drive
-                        meta = {'name': f"AUTORIZACION_{doc_id}.pdf", 'parents': [st.secrets["drive_folder_id"]]}
+                        meta = {'name': f"VINCULACION_{doc_id}.pdf", 'parents': [st.secrets["drive_folder_id"]]}
                         media = MediaFileUpload(pdf_path, mimetype='application/pdf')
-                        f = drive.files().create(
-                            body=meta,
-                            media_body=media,
-                            fields='webViewLink',
-                            supportsAllDrives=True
-                        ).execute()
+                        f = drive.files().create(body=meta, media_body=media, fields='webViewLink', supportsAllDrives=True).execute()
                         st.session_state.final_url = f.get('webViewLink')
                         
                         # Email Final
                         html_end = f"""
-                        <div style='font-family:Arial; color:#333;'>
-                            <h2 style='color:{COLOR_PRIMARY};'>Proceso Exitoso</h2>
-                            <p>Ferreinox S.A.S. BIC confirma la recepción de su autorización de datos.</p>
+                        <div style='font-family:Arial, sans-serif; color:#333;'>
+                            <h2 style='color:{COLOR_PRIMARY};'>Vinculación Exitosa</h2>
+                            <p>Estimado usuario,</p>
+                            <p>Ferreinox S.A.S. BIC confirma la recepción y firma exitosa de su autorización de datos.</p>
                             <ul>
-                                <li><b>ID Radicado:</b> {doc_id}</li>
+                                <li><b>Radicado:</b> {doc_id}</li>
                                 <li><b>Fecha:</b> {ts}</li>
                             </ul>
-                            <p>Adjunto encontrará el PDF firmado para su archivo.</p>
+                            <p>Adjunto encontrará el documento PDF firmado y legalizado para sus archivos.</p>
+                            <hr style='border:0; border-top:1px solid #eee;'>
+                            <p style='font-size:11px; color:#999;'>Ferreinox S.A.S. BIC - Pereira, Colombia</p>
                         </div>
                         """
-                        send_email_sendgrid(email_dest, "Confirmación Vinculación - Ferreinox", html_end, pdf_path, f"Autorizacion_{doc_id}.pdf")
+                        send_email_sendgrid(email_dest, "Confirmación Vinculación - Ferreinox", html_end, pdf_path, f"Vinculacion_{doc_id}.pdf")
                         
                         st.session_state.step = 5
                         st.rerun()
@@ -767,13 +825,23 @@ elif st.session_state.step == 5:
     st.balloons()
     st.markdown(f"""
     <div class="card-box" style="text-align: center;">
-        <h1 style="color: green; font-size: 4rem;">✅</h1>
-        <h2 style="color: {COLOR_PRIMARY};">¡Proceso Completado!</h2>
-        <p>Sus datos han sido actualizados exitosamente en la base de datos de Ferreinox S.A.S. BIC.</p>
-        <p>Hemos enviado una copia del documento legal a su correo electrónico.</p>
+        <h1 style="color: #4CAF50; font-size: 5rem; margin-bottom:10px;">✅</h1>
+        <h2 style="color: {COLOR_PRIMARY}; text-transform: uppercase;">¡Proceso Completado!</h2>
+        <p style="font-size:1.1rem; color:#555;">Sus datos han sido actualizados y el contrato ha sido firmado digitalmente.</p>
+        <p>Hemos enviado una copia del documento a su correo electrónico.</p>
         <br>
-        <a href="{st.session_state.final_url}" target="_blank" style="background:{COLOR_PRIMARY}; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">VER DOCUMENTO PDF</a>
-        <br><br>
+        <a href="{st.session_state.final_url}" target="_blank" style="
+            background-color:{COLOR_PRIMARY}; 
+            color:white; 
+            padding:15px 30px; 
+            text-decoration:none; 
+            border-radius:50px; 
+            font-weight:bold;
+            box-shadow: 0 5px 15px rgba(13, 71, 161, 0.4);
+            display: inline-block;
+            transition: all 0.3s;
+        ">VER DOCUMENTO PDF</a>
+        <br><br><br>
     </div>
     """, unsafe_allow_html=True)
     
