@@ -573,36 +573,34 @@ if st.session_state.step < 5:
 if st.session_state.step == 1:
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">POLÍTICA DE TRATAMIENTO DE DATOS</div>', unsafe_allow_html=True)
-    
-    st.markdown(f"""
-    <div class="legal-scroll-box">
-        <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, informa que es responsable del tratamiento de sus datos personales. De conformidad con lo dispuesto en la <b>Ley Estatutaria 1581 de 2012</b>, el <b>Decreto Reglamentario 1377 de 2013</b> y demás normas concordantes, solicitamos su autorización libre, previa, expresa e informada para continuar con el tratamiento de sus datos.</p>
-        
-        <h4>1. FINALIDADES DEL TRATAMIENTO</h4>
-        <p>Los datos suministrados serán utilizados para:</p>
-        <ul>
-            <li>El desarrollo de la relación comercial, contractual y contable (facturación, cobranza, despachos).</li>
-            <li>La consulta y reporte ante centrales de riesgo financiero (Datacrédito, CIFIN) para el estudio de crédito y comportamiento de pago (Ley 1266 de 2008).</li>
-            <li>El envío de información sobre novedades, productos, promociones y eventos de FERREINOX S.A.S. BIC.</li>
-            <li>La implementación de procesos de facturación electrónica conforme a las exigencias de la DIAN.</li>
-        </ul>
 
-        <h4>2. DERECHOS DEL TITULAR (Habeas Data)</h4>
-        <p>Como titular de la información, usted tiene derecho a:</p>
-        <ul>
-            <li>Acceder de forma gratuita a sus datos personales.</li>
-            <li>Solicitar la actualización y rectificación de sus datos frente a información parcial, inexacta o incompleta.</li>
-            <li>Solicitar prueba de la autorización otorgada.</li>
-            <li>Revocar la autorización y/o solicitar la supresión del dato cuando no se respeten los principios constitucionales.</li>
-        </ul>
+    st.markdown("**FERREINOX S.A.S. BIC**, identificada con NIT 800.224.617-8, informa que es responsable del tratamiento de sus datos personales. De conformidad con lo dispuesto en la **Ley Estatutaria 1581 de 2012**, el **Decreto Reglamentario 1377 de 2013** y demás normas concordantes, solicitamos su autorización libre, previa, expresa e informada para continuar con el tratamiento de sus datos.")
 
-        <h4>3. DECLARACIONES Y AUTORIZACIONES</h4>
-        <p>El titular manifiesta que la información suministrada es veraz y autoriza la consulta en listas restrictivas y centrales de riesgo.</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("### 1. FINALIDADES DEL TRATAMIENTO")
+    st.write("Los datos suministrados serán utilizados para:")
+    st.markdown("""
+- El desarrollo de la relación comercial, contractual y contable (facturación, cobranza, despachos).
+- La consulta y reporte ante centrales de riesgo financiero (Datacrédito, CIFIN) para el estudio de crédito y comportamiento de pago (Ley 1266 de 2008).
+- El envío de información sobre novedades, productos, promociones y eventos de FERREINOX S.A.S. BIC.
+- La implementación de procesos de facturación electrónica conforme a las exigencias de la DIAN.
+    """)
+
+    st.markdown("### 2. DERECHOS DEL TITULAR (Habeas Data)")
+    st.write("Como titular de la información, usted tiene derecho a:")
+    st.markdown("""
+- Acceder de forma gratuita a sus datos personales.
+- Solicitar la actualización y rectificación de sus datos frente a información parcial, inexacta o incompleta.
+- Solicitar prueba de la autorización otorgada.
+- Revocar la autorización y/o solicitar la supresión del dato cuando no se respeten los principios constitucionales.
+    """)
+
+    st.markdown("### 3. DECLARACIONES Y AUTORIZACIONES")
+    st.write("El titular manifiesta que la información suministrada es veraz y autoriza la consulta en listas restrictivas y centrales de riesgo.")
+
+    st.info("Para ampliar información sobre nuestras políticas y tratamiento de datos, visite: [https://www.ferreinox.co/es/politica-tratamiento-de-datos-CPG232](https://www.ferreinox.co/es/politica-tratamiento-de-datos-CPG232)")
+
     check = st.checkbox("Declaro que he leído, comprendo y ACEPTO la Política de Tratamiento de Datos Personales y autorizo las consultas en Centrales de Riesgo.")
-    
+
     if st.button("ACEPTAR Y CONTINUAR ➜"):
         if check:
             st.session_state.step = 2
@@ -653,6 +651,12 @@ elif st.session_state.step == 3:
             st.subheader("Facturación y Representación")
             correo = st.text_input("Correo Electrónico de Contacto*")
             correo_facturacion = st.text_input("Correo para Facturación Electrónica (DIAN)*")
+            st.markdown(
+                "<span style='font-size:0.95rem; color:#37474F;'>"
+                "El correo suministrado para facturación electrónica será el canal oficial para el envío de facturas. "
+                "Si no se rechazan expresamente, se entenderán aceptadas tácitamente, ya que este fue el correo suministrado y firmado digitalmente.</span>",
+                unsafe_allow_html=True
+            )
             rep_legal = col1.text_input("Nombre Representante Legal*")
             cedula_rep = col2.text_input("Cédula Rep. Legal*")
             
@@ -668,6 +672,12 @@ elif st.session_state.step == 3:
             celular = col2.text_input("Celular Personal*")
             correo = st.text_input("Correo Electrónico Personal*")
             correo_facturacion = st.text_input("Correo para Facturación Electrónica (DIAN)*")
+            st.markdown(
+                "<span style='font-size:0.95rem; color:#37474F;'>"
+                "El correo suministrado para facturación electrónica será el canal oficial para el envío de facturas. "
+                "Si no se rechazan expresamente, se entenderán aceptadas tácitamente, ya que este fue el correo suministrado y firmado digitalmente.</span>",
+                unsafe_allow_html=True
+            )
             telefono = celular
             
             razon_social, nit, rep_legal, cedula_rep = nom_nat, ced_nat, "", ""
