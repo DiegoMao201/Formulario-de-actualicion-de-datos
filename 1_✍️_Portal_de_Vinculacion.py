@@ -322,16 +322,17 @@ class CorporatePDFGenerator:
             grid_data = [
                 [Paragraph("RAZÓN SOCIAL", self.s_label), Paragraph(d.get('razon_social', ''), self.s_value), Paragraph("NIT", self.s_label), Paragraph(d.get('nit', ''), self.s_value)],
                 [Paragraph("DIRECCIÓN", self.s_label), Paragraph(d.get('direccion', ''), self.s_value), Paragraph("CIUDAD", self.s_label), Paragraph(d.get('ciudad', ''), self.s_value)],
-                [Paragraph("EMAIL FACTURACIÓN", self.s_label), Paragraph(d.get('correo', ''), self.s_value), Paragraph("TELÉFONO/MÓVIL", self.s_label), Paragraph(f"{d.get('telefono', '')} / {d.get('celular', '')}", self.s_value)],
-                [Paragraph("REP. LEGAL", self.s_label), Paragraph(d.get('rep_legal', ''), self.s_value), Paragraph("C.C. REP. LEGAL", self.s_label), Paragraph(d.get('cedula_rep_legal', ''), self.s_value)],
+                [Paragraph("EMAIL CONTACTO", self.s_label), Paragraph(d.get('correo', ''), self.s_value), Paragraph("EMAIL FACTURACIÓN", self.s_label), Paragraph(d.get('correo_facturacion', ''), self.s_value)],
+                [Paragraph("TELÉFONO/MÓVIL", self.s_label), Paragraph(f"{d.get('telefono', '')} / {d.get('celular', '')}", self.s_value), Paragraph("REP. LEGAL", self.s_label), Paragraph(d.get('rep_legal', ''), self.s_value)],
+                [Paragraph("C.C. REP. LEGAL", self.s_label), Paragraph(d.get('cedula_rep_legal', ''), self.s_value), Paragraph("", self.s_label), Paragraph("", self.s_value)],
             ]
         else:
             def safe_txt(k): return str(d.get(k, ''))
             grid_data = [
                 [Paragraph("NOMBRE COMPLETO", self.s_label), Paragraph(safe_txt('nombre_natural'), self.s_value), Paragraph("CÉDULA", self.s_label), Paragraph(safe_txt('cedula_natural'), self.s_value)],
                 [Paragraph("DIRECCIÓN", self.s_label), Paragraph(safe_txt('direccion'), self.s_value), Paragraph("CIUDAD", self.s_label), Paragraph(safe_txt('ciudad'), self.s_value)],
-                [Paragraph("EMAIL PERSONAL", self.s_label), Paragraph(safe_txt('correo'), self.s_value), Paragraph("CELULAR", self.s_label), Paragraph(safe_txt('telefono'), self.s_value)],
-                [Paragraph("FECHA NACIMIENTO", self.s_label), Paragraph(safe_txt('fecha_nacimiento'), self.s_value), Paragraph("", self.s_label), Paragraph("", self.s_value)],
+                [Paragraph("EMAIL PERSONAL", self.s_label), Paragraph(safe_txt('correo'), self.s_value), Paragraph("EMAIL FACTURACIÓN", self.s_label), Paragraph(safe_txt('correo_facturacion'), self.s_value)],
+                [Paragraph("CELULAR", self.s_label), Paragraph(safe_txt('telefono'), self.s_value), Paragraph("FECHA NACIMIENTO", self.s_label), Paragraph(safe_txt('fecha_nacimiento'), self.s_value)],
             ]
 
         # Configurar Tabla Grilla
@@ -639,7 +640,6 @@ elif st.session_state.step == 3:
     st.markdown('<div class="section-title">DILIGENCIAMIENTO DE INFORMACIÓN</div>', unsafe_allow_html=True)
     
     with st.form("main_form"):
-        # Lógica Condicional de Campos
         if st.session_state.client_type == 'juridica':
             st.subheader("Datos Empresariales")
             col1, col2 = st.columns(2)
@@ -651,11 +651,11 @@ elif st.session_state.step == 3:
             celular = col2.text_input("Celular Contacto*")
             
             st.subheader("Facturación y Representación")
-            correo = st.text_input("Correo para Facturación Electrónica (DIAN)*")
+            correo = st.text_input("Correo Electrónico de Contacto*")
+            correo_facturacion = st.text_input("Correo para Facturación Electrónica (DIAN)*")
             rep_legal = col1.text_input("Nombre Representante Legal*")
             cedula_rep = col2.text_input("Cédula Rep. Legal*")
             
-            # Variables vacías para el otro tipo
             nom_nat, ced_nat, fe_nac = "", "", None
         else:
             st.subheader("Datos Personales")
@@ -667,14 +667,14 @@ elif st.session_state.step == 3:
             ciudad = col1.text_input("Ciudad*")
             celular = col2.text_input("Celular Personal*")
             correo = st.text_input("Correo Electrónico Personal*")
+            correo_facturacion = st.text_input("Correo para Facturación Electrónica (DIAN)*")
             telefono = celular
             
-            # Variables vacías para el otro tipo
             razon_social, nit, rep_legal, cedula_rep = nom_nat, ced_nat, "", ""
 
         st.markdown("---")
         st.markdown("<b>FIRMA DIGITAL:</b> Por favor firme en el recuadro blanco usando el mouse o dedo.")
-        
+
         canvas = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=2,
@@ -689,28 +689,26 @@ elif st.session_state.step == 3:
         submitted = st.form_submit_button("GUARDAR Y VALIDAR IDENTIDAD ➜")
         
         if submitted:
-            # Validacion
             valid = True
             if st.session_state.client_type == 'juridica':
-                if not all([razon_social, nit, direccion, ciudad, correo, celular, rep_legal, cedula_rep]): valid = False
+                if not all([razon_social, nit, direccion, ciudad, correo, correo_facturacion, celular, rep_legal, cedula_rep]): valid = False
             else:
-                if not all([nom_nat, ced_nat, direccion, ciudad, correo, celular]): valid = False
-            
+                if not all([nom_nat, ced_nat, direccion, ciudad, correo, correo_facturacion, celular]): valid = False
+
             if canvas.image_data is None or np.all(canvas.image_data == 255):
                 st.error("⚠️ La firma es obligatoria.")
                 valid = False
-                
+
             if valid:
-                # Guardar en Session State
                 st.session_state.form_data = {
                     'client_type': st.session_state.client_type,
                     'razon_social': razon_social, 'nit': nit, 'direccion': direccion, 
                     'ciudad': ciudad, 'telefono': telefono, 'celular': celular,
-                    'correo': correo, 'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep,
+                    'correo': correo, 'correo_facturacion': correo_facturacion,
+                    'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep,
                     'nombre_natural': nom_nat, 'cedula_natural': ced_nat, 'fecha_nacimiento': fe_nac,
                     'firma_img_pil': Image.fromarray(canvas.image_data.astype('uint8'), 'RGBA')
                 }
-                
                 # Generar OTP y Enviar
                 otp = str(random.randint(100000, 999999))
                 st.session_state.otp = otp
