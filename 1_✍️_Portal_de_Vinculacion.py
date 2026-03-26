@@ -840,7 +840,8 @@ def get_signer_name(data):
     return data.get('rep_legal') or data.get('nombre_natural') or "Cliente Ferreinox"
 
 def render_html_block(html):
-    st.markdown(dedent(html).strip(), unsafe_allow_html=True)
+    compact_html = "".join(line.strip() for line in dedent(html).splitlines())
+    st.markdown(compact_html, unsafe_allow_html=True)
 
 def clear_canvas_state():
     for key in ["canvas", "main_form"]:
@@ -1054,58 +1055,42 @@ if st.session_state.step < 5:
 
 # --- PASO 1: TÉRMINOS LEGALES AMPLIADOS ---
 if st.session_state.step == 1:
-    st.markdown('<div class="section-title">Antes de continuar: esto es exactamente lo que vamos a hacer</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-lead">Ferreinox S.A.S. BIC solicita esta autorización para mantener sus datos correctos, operar su relación comercial con trazabilidad, enviar soportes electrónicos por el correo oficial que usted registre y dejar evidencia verificable de su aceptación.</div>', unsafe_allow_html=True)
+    st.markdown("## Antes de continuar: esto es exactamente lo que vamos a hacer")
+    st.write("Ferreinox S.A.S. BIC solicita esta autorización para mantener sus datos correctos, operar su relación comercial con trazabilidad, enviar soportes electrónicos por el correo oficial que usted registre y dejar evidencia verificable de su aceptación.")
 
-    render_html_block("""
-<div class="trust-strip">
-    <div class="trust-item">
-        <strong>Actualización documental</strong>
-        <span>Validamos datos de contacto, identificación, facturación y representación para que su registro quede formalmente actualizado.</span>
-    </div>
-    <div class="trust-item">
-        <strong>Facturación electrónica</strong>
-        <span>El correo que usted entregue será el canal oficial para facturas, notas y soportes tributarios asociados.</span>
-    </div>
-    <div class="trust-item">
-        <strong>Evaluación y cartera</strong>
-        <span>Cuando aplique, la información podrá usarse para consulta y reporte financiero dentro del marco legal vigente.</span>
-    </div>
-    <div class="trust-item">
-        <strong>Soporte con evidencia</strong>
-        <span>El proceso termina con OTP, firma electrónica y un PDF ejecutivo para su custodia y la de Ferreinox.</span>
-    </div>
-</div>
-""")
+    trust_col_1, trust_col_2 = st.columns(2)
+    with trust_col_1:
+        st.info("**Actualización documental**\n\nValidamos datos de contacto, identificación, facturación y representación para que su registro quede formalmente actualizado.")
+        st.info("**Evaluación y cartera**\n\nCuando aplique, la información podrá usarse para consulta y reporte financiero dentro del marco legal vigente.")
+    with trust_col_2:
+        st.info("**Facturación electrónica**\n\nEl correo que usted entregue será el canal oficial para facturas, notas y soportes tributarios asociados.")
+        st.info("**Soporte con evidencia**\n\nEl proceso termina con OTP, firma electrónica y un PDF ejecutivo para su custodia y la de Ferreinox.")
 
-    st.markdown('<div class="notice-banner"><b>Mensaje clave:</b> usted no está firmando un texto ambiguo. Está autorizando de manera expresa y clara el tratamiento de sus datos para fines comerciales, operativos, tributarios, de servicio y cumplimiento, bajo las condiciones aquí descritas.</div>', unsafe_allow_html=True)
+    st.warning("**Mensaje clave:** usted no está firmando un texto ambiguo. Está autorizando de manera expresa y clara el tratamiento de sus datos para fines comerciales, operativos, tributarios, de servicio y cumplimiento, bajo las condiciones aquí descritas.")
 
-    render_html_block("""
-<div class="legal-scroll-box">
-    <h4>1. Responsable del tratamiento</h4>
-    <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, actúa como responsable del tratamiento de los datos personales que usted suministre en este formulario.</p>
+    with st.container():
+        st.markdown("### 1. Responsable del tratamiento")
+        st.write("FERREINOX S.A.S. BIC, identificado con NIT 800.224.617-8, actúa como responsable del tratamiento de los datos personales que usted suministra en este formulario.")
 
-    <h4>2. Para qué se usarán sus datos</h4>
-    <p>Sus datos se utilizarán para registrar o actualizar su vinculación comercial, gestionar pedidos, despachos, cartera, servicio al cliente, facturación electrónica, soporte tributario, validaciones internas, comunicaciones autorizadas y demás actividades asociadas a la relación con Ferreinox.</p>
+        st.markdown("### 2. Para qué se usarán sus datos")
+        st.write("Sus datos se utilizarán para registrar o actualizar su vinculación comercial, gestionar pedidos, despachos, cartera, servicio al cliente, facturación electrónica, soporte tributario, validaciones internas, comunicaciones autorizadas y demás actividades asociadas a la relación con Ferreinox.")
 
-    <h4>3. Qué autoriza usted de forma expresa</h4>
-    <p>Al continuar, usted autoriza a Ferreinox para recolectar, almacenar, actualizar, usar, transmitir y conservar la información entregada. También autoriza, cuando aplique, la consulta y reporte de información financiera, crediticia y comercial ante operadores o centrales de información en los términos de la Ley 1266 de 2008 y normas concordantes.</p>
+        st.markdown("### 3. Qué autoriza usted de forma expresa")
+        st.write("Al continuar, usted autoriza a Ferreinox para recolectar, almacenar, actualizar, usar, transmitir y conservar la información entregada. También autoriza, cuando aplique, la consulta y reporte de información financiera, crediticia y comercial ante operadores o centrales de información en los términos de la Ley 1266 de 2008 y normas concordantes.")
 
-    <h4>4. Correo oficial para facturación electrónica</h4>
-    <p>El correo que usted registre como correo de facturación será reconocido como el medio oficial para remitir facturas electrónicas, notas débito, notas crédito y demás soportes relacionados, conforme a la regulación vigente de la DIAN.</p>
+        st.markdown("### 4. Correo oficial para facturación electrónica")
+        st.write("El correo que usted registre como correo de facturación será reconocido como el medio oficial para remitir facturas electrónicas, notas débito, notas crédito y demás soportes relacionados, conforme a la regulación vigente de la DIAN.")
 
-    <h4>5. Declaraciones del titular</h4>
-    <p>Usted declara que la información suministrada es veraz, suficiente y actual. Asimismo, declara bajo gravedad de juramento que los recursos vinculados a la relación comercial provienen de actividades lícitas y que no tienen relación con lavado de activos, financiación del terrorismo u otras actividades prohibidas por la ley.</p>
+        st.markdown("### 5. Declaraciones del titular")
+        st.write("Usted declara que la información suministrada es veraz, suficiente y actual. Asimismo, declara bajo gravedad de juramento que los recursos vinculados a la relación comercial provienen de actividades lícitas y que no tienen relación con lavado de activos, financiación del terrorismo u otras actividades prohibidas por la ley.")
 
-    <h4>6. Sus derechos</h4>
-    <p>Como titular puede conocer, actualizar, rectificar y solicitar prueba de la autorización otorgada. También puede presentar solicitudes de revocatoria o supresión cuando proceda legalmente y no exista deber contractual o legal que obligue a conservar la información.</p>
+        st.markdown("### 6. Sus derechos")
+        st.write("Como titular puede conocer, actualizar, rectificar y solicitar prueba de la autorización otorgada. También puede presentar solicitudes de revocatoria o supresión cuando proceda legalmente y no exista deber contractual o legal que obligue a conservar la información.")
 
-    <h4>7. Evidencia del consentimiento</h4>
-    <p>Este proceso genera una constancia electrónica compuesta por sus datos diligenciados, OTP de verificación, marca de tiempo y firma manuscrita insertada en el PDF final.</p>
-</div>
-""")
+        st.markdown("### 7. Evidencia del consentimiento")
+        st.write("Este proceso genera una constancia electrónica compuesta por sus datos diligenciados, OTP de verificación, marca de tiempo y firma manuscrita insertada en el PDF final.")
 
-    st.markdown('<div class="consent-box"><b>En resumen:</b> Ferreinox está formalizando su actualización de datos y la autorización asociada con un documento ejecutivo, claro y auditable. Nada queda implícito: el alcance de su consentimiento queda expresamente documentado.</div>', unsafe_allow_html=True)
+    st.success("**En resumen:** Ferreinox está formalizando su actualización de datos y la autorización asociada con un documento ejecutivo, claro y auditable. Nada queda implícito: el alcance de su consentimiento queda expresamente documentado.")
     st.info("Para ampliar información sobre políticas de tratamiento de datos, consulte el portal oficial de Ferreinox: https://www.ferreinox.co/es/politica-tratamiento-de-datos-CPG232")
 
     check = st.checkbox("Declaro que he leído y comprendido el alcance de esta autorización, acepto el tratamiento de mis datos en los términos descritos y reconozco el correo registrado como canal oficial para comunicaciones y facturación electrónica.")
@@ -1119,20 +1104,16 @@ if st.session_state.step == 1:
 
 # --- PASO 2: TIPO DE CLIENTE ---
 elif st.session_state.step == 2:
-    st.markdown('<div class="section-title">Seleccione el perfil que va a formalizar</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-lead">Elegir el tipo correcto permite construir el formulario, el PDF y la evidencia de firma con los campos que corresponden a su realidad jurídica.</div>', unsafe_allow_html=True)
-    render_html_block("""
-<div class="type-grid">
-    <div class="type-card">
-        <h4>Persona jurídica</h4>
-        <p>Para empresas, sociedades, entidades o negocios que actuarán a través de un representante legal y requieren soportar razón social, NIT, correo de facturación y trazabilidad corporativa.</p>
-    </div>
-    <div class="type-card">
-        <h4>Persona natural</h4>
-        <p>Para clientes independientes o personas que autorizan en nombre propio y necesitan formalizar sus datos personales, su canal oficial de facturación y su evidencia de consentimiento.</p>
-    </div>
-</div>
-""")
+    st.markdown("## Seleccione el perfil que va a formalizar")
+    st.write("Elegir el tipo correcto permite construir el formulario, el PDF y la evidencia de firma con los campos que corresponden a su realidad jurídica.")
+
+    info_col_1, info_col_2 = st.columns(2)
+    with info_col_1:
+        st.markdown("### Persona jurídica")
+        st.write("Para empresas, sociedades, entidades o negocios que actuarán a través de un representante legal y requieren soportar razón social, NIT, correo de facturación y trazabilidad corporativa.")
+    with info_col_2:
+        st.markdown("### Persona natural")
+        st.write("Para clientes independientes o personas que autorizan en nombre propio y necesitan formalizar sus datos personales, su canal oficial de facturación y su evidencia de consentimiento.")
     
     c1, c2 = st.columns(2)
     with c1:
