@@ -17,6 +17,7 @@ import numpy as np
 import random
 import pytz
 import base64
+from textwrap import dedent
 from xml.sax.saxutils import escape
 
 # --- ReportLab Imports (Motor Gráfico Avanzado) ---
@@ -838,6 +839,14 @@ def get_logo_data_uri():
 def get_signer_name(data):
     return data.get('rep_legal') or data.get('nombre_natural') or "Cliente Ferreinox"
 
+def render_html_block(html):
+    st.markdown(dedent(html).strip(), unsafe_allow_html=True)
+
+def clear_canvas_state():
+    for key in ["canvas", "main_form"]:
+        if key in st.session_state:
+            del st.session_state[key]
+
 def build_email_shell(title, preheader, body_html, footer_note):
     return f"""
     <div style="margin:0; padding:32px 12px; background:#eef3f8; font-family:'Segoe UI', Arial, sans-serif; color:{COLOR_TEXT};">
@@ -937,32 +946,32 @@ def build_confirmation_email(doc_id, ts, signer_name, email_dest):
 def render_header():
     logo_uri = get_logo_data_uri()
     logo_html = f'<img src="{logo_uri}" class="header-logo" alt="Ferreinox" />' if logo_uri else '<div style="font-family:Montserrat, sans-serif; font-size:1.3rem; font-weight:800; color:white;">FERREINOX</div>'
-    st.markdown(f"""
-    <div class="header-shell">
-        <div class="header-badge">Portal corporativo de vinculación</div>
-        <div class="header-grid">
-            <div class="header-logo-wrap">{logo_html}</div>
-            <div>
-                <h1 class="header-title">Actualización de datos con respaldo corporativo real</h1>
-                <p class="header-subtitle">Este portal formaliza su autorización con lenguaje claro, evidencia electrónica verificable y un documento PDF ejecutivo alineado con la identidad de Ferreinox S.A.S. BIC.</p>
-            </div>
-        </div>
-        <div class="header-points">
-            <div class="header-point">
-                <strong>Proceso transparente</strong>
-                <span>Le explicamos exactamente qué información se actualiza, para qué se utiliza y qué está autorizando.</span>
-            </div>
-            <div class="header-point">
-                <strong>Evidencia electrónica</strong>
-                <span>Su documento queda respaldado con OTP, marca de tiempo y firma manuscrita insertada en el PDF.</span>
-            </div>
-            <div class="header-point">
-                <strong>Canales oficiales Ferreinox</strong>
-                <span>Comunicación formal, custodia documental y soporte a través de www.ferreinox.co y medios corporativos.</span>
-            </div>
+    render_html_block(f"""
+<div class="header-shell">
+    <div class="header-badge">Portal corporativo de vinculación</div>
+    <div class="header-grid">
+        <div class="header-logo-wrap">{logo_html}</div>
+        <div>
+            <h1 class="header-title">Actualización de datos con respaldo corporativo real</h1>
+            <p class="header-subtitle">Este portal formaliza su autorización con lenguaje claro, evidencia electrónica verificable y un documento PDF ejecutivo alineado con la identidad de Ferreinox S.A.S. BIC.</p>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="header-points">
+        <div class="header-point">
+            <strong>Proceso transparente</strong>
+            <span>Le explicamos exactamente qué información se actualiza, para qué se utiliza y qué está autorizando.</span>
+        </div>
+        <div class="header-point">
+            <strong>Evidencia electrónica</strong>
+            <span>Su documento queda respaldado con OTP, marca de tiempo y firma manuscrita insertada en el PDF.</span>
+        </div>
+        <div class="header-point">
+            <strong>Canales oficiales Ferreinox</strong>
+            <span>Comunicación formal, custodia documental y soporte a través de www.ferreinox.co y medios corporativos.</span>
+        </div>
+    </div>
+</div>
+""")
 
 def render_progress():
     s = st.session_state.step
@@ -1048,53 +1057,53 @@ if st.session_state.step == 1:
     st.markdown('<div class="section-title">Antes de continuar: esto es exactamente lo que vamos a hacer</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Ferreinox S.A.S. BIC solicita esta autorización para mantener sus datos correctos, operar su relación comercial con trazabilidad, enviar soportes electrónicos por el correo oficial que usted registre y dejar evidencia verificable de su aceptación.</div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="trust-strip">
-        <div class="trust-item">
-            <strong>Actualización documental</strong>
-            <span>Validamos datos de contacto, identificación, facturación y representación para que su registro quede formalmente actualizado.</span>
-        </div>
-        <div class="trust-item">
-            <strong>Facturación electrónica</strong>
-            <span>El correo que usted entregue será el canal oficial para facturas, notas y soportes tributarios asociados.</span>
-        </div>
-        <div class="trust-item">
-            <strong>Evaluación y cartera</strong>
-            <span>Cuando aplique, la información podrá usarse para consulta y reporte financiero dentro del marco legal vigente.</span>
-        </div>
-        <div class="trust-item">
-            <strong>Soporte con evidencia</strong>
-            <span>El proceso termina con OTP, firma electrónica y un PDF ejecutivo para su custodia y la de Ferreinox.</span>
-        </div>
+    render_html_block("""
+<div class="trust-strip">
+    <div class="trust-item">
+        <strong>Actualización documental</strong>
+        <span>Validamos datos de contacto, identificación, facturación y representación para que su registro quede formalmente actualizado.</span>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="trust-item">
+        <strong>Facturación electrónica</strong>
+        <span>El correo que usted entregue será el canal oficial para facturas, notas y soportes tributarios asociados.</span>
+    </div>
+    <div class="trust-item">
+        <strong>Evaluación y cartera</strong>
+        <span>Cuando aplique, la información podrá usarse para consulta y reporte financiero dentro del marco legal vigente.</span>
+    </div>
+    <div class="trust-item">
+        <strong>Soporte con evidencia</strong>
+        <span>El proceso termina con OTP, firma electrónica y un PDF ejecutivo para su custodia y la de Ferreinox.</span>
+    </div>
+</div>
+""")
 
     st.markdown('<div class="notice-banner"><b>Mensaje clave:</b> usted no está firmando un texto ambiguo. Está autorizando de manera expresa y clara el tratamiento de sus datos para fines comerciales, operativos, tributarios, de servicio y cumplimiento, bajo las condiciones aquí descritas.</div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="legal-scroll-box">
-        <h4>1. Responsable del tratamiento</h4>
-        <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, actúa como responsable del tratamiento de los datos personales que usted suministre en este formulario.</p>
+    render_html_block("""
+<div class="legal-scroll-box">
+    <h4>1. Responsable del tratamiento</h4>
+    <p><b>FERREINOX S.A.S. BIC</b>, identificada con NIT 800.224.617-8, actúa como responsable del tratamiento de los datos personales que usted suministre en este formulario.</p>
 
-        <h4>2. Para qué se usarán sus datos</h4>
-        <p>Sus datos se utilizarán para registrar o actualizar su vinculación comercial, gestionar pedidos, despachos, cartera, servicio al cliente, facturación electrónica, soporte tributario, validaciones internas, comunicaciones autorizadas y demás actividades asociadas a la relación con Ferreinox.</p>
+    <h4>2. Para qué se usarán sus datos</h4>
+    <p>Sus datos se utilizarán para registrar o actualizar su vinculación comercial, gestionar pedidos, despachos, cartera, servicio al cliente, facturación electrónica, soporte tributario, validaciones internas, comunicaciones autorizadas y demás actividades asociadas a la relación con Ferreinox.</p>
 
-        <h4>3. Qué autoriza usted de forma expresa</h4>
-        <p>Al continuar, usted autoriza a Ferreinox para recolectar, almacenar, actualizar, usar, transmitir y conservar la información entregada. También autoriza, cuando aplique, la consulta y reporte de información financiera, crediticia y comercial ante operadores o centrales de información en los términos de la Ley 1266 de 2008 y normas concordantes.</p>
+    <h4>3. Qué autoriza usted de forma expresa</h4>
+    <p>Al continuar, usted autoriza a Ferreinox para recolectar, almacenar, actualizar, usar, transmitir y conservar la información entregada. También autoriza, cuando aplique, la consulta y reporte de información financiera, crediticia y comercial ante operadores o centrales de información en los términos de la Ley 1266 de 2008 y normas concordantes.</p>
 
-        <h4>4. Correo oficial para facturación electrónica</h4>
-        <p>El correo que usted registre como correo de facturación será reconocido como el medio oficial para remitir facturas electrónicas, notas débito, notas crédito y demás soportes relacionados, conforme a la regulación vigente de la DIAN.</p>
+    <h4>4. Correo oficial para facturación electrónica</h4>
+    <p>El correo que usted registre como correo de facturación será reconocido como el medio oficial para remitir facturas electrónicas, notas débito, notas crédito y demás soportes relacionados, conforme a la regulación vigente de la DIAN.</p>
 
-        <h4>5. Declaraciones del titular</h4>
-        <p>Usted declara que la información suministrada es veraz, suficiente y actual. Asimismo, declara bajo gravedad de juramento que los recursos vinculados a la relación comercial provienen de actividades lícitas y que no tienen relación con lavado de activos, financiación del terrorismo u otras actividades prohibidas por la ley.</p>
+    <h4>5. Declaraciones del titular</h4>
+    <p>Usted declara que la información suministrada es veraz, suficiente y actual. Asimismo, declara bajo gravedad de juramento que los recursos vinculados a la relación comercial provienen de actividades lícitas y que no tienen relación con lavado de activos, financiación del terrorismo u otras actividades prohibidas por la ley.</p>
 
-        <h4>6. Sus derechos</h4>
-        <p>Como titular puede conocer, actualizar, rectificar y solicitar prueba de la autorización otorgada. También puede presentar solicitudes de revocatoria o supresión cuando proceda legalmente y no exista deber contractual o legal que obligue a conservar la información.</p>
+    <h4>6. Sus derechos</h4>
+    <p>Como titular puede conocer, actualizar, rectificar y solicitar prueba de la autorización otorgada. También puede presentar solicitudes de revocatoria o supresión cuando proceda legalmente y no exista deber contractual o legal que obligue a conservar la información.</p>
 
-        <h4>7. Evidencia del consentimiento</h4>
-        <p>Este proceso genera una constancia electrónica compuesta por sus datos diligenciados, OTP de verificación, marca de tiempo y firma manuscrita insertada en el PDF final.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    <h4>7. Evidencia del consentimiento</h4>
+    <p>Este proceso genera una constancia electrónica compuesta por sus datos diligenciados, OTP de verificación, marca de tiempo y firma manuscrita insertada en el PDF final.</p>
+</div>
+""")
 
     st.markdown('<div class="consent-box"><b>En resumen:</b> Ferreinox está formalizando su actualización de datos y la autorización asociada con un documento ejecutivo, claro y auditable. Nada queda implícito: el alcance de su consentimiento queda expresamente documentado.</div>', unsafe_allow_html=True)
     st.info("Para ampliar información sobre políticas de tratamiento de datos, consulte el portal oficial de Ferreinox: https://www.ferreinox.co/es/politica-tratamiento-de-datos-CPG232")
@@ -1112,18 +1121,18 @@ if st.session_state.step == 1:
 elif st.session_state.step == 2:
     st.markdown('<div class="section-title">Seleccione el perfil que va a formalizar</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Elegir el tipo correcto permite construir el formulario, el PDF y la evidencia de firma con los campos que corresponden a su realidad jurídica.</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="type-grid">
-        <div class="type-card">
-            <h4>Persona jurídica</h4>
-            <p>Para empresas, sociedades, entidades o negocios que actuarán a través de un representante legal y requieren soportar razón social, NIT, correo de facturación y trazabilidad corporativa.</p>
-        </div>
-        <div class="type-card">
-            <h4>Persona natural</h4>
-            <p>Para clientes independientes o personas que autorizan en nombre propio y necesitan formalizar sus datos personales, su canal oficial de facturación y su evidencia de consentimiento.</p>
-        </div>
+    render_html_block("""
+<div class="type-grid">
+    <div class="type-card">
+        <h4>Persona jurídica</h4>
+        <p>Para empresas, sociedades, entidades o negocios que actuarán a través de un representante legal y requieren soportar razón social, NIT, correo de facturación y trazabilidad corporativa.</p>
     </div>
-    """, unsafe_allow_html=True)
+    <div class="type-card">
+        <h4>Persona natural</h4>
+        <p>Para clientes independientes o personas que autorizan en nombre propio y necesitan formalizar sus datos personales, su canal oficial de facturación y su evidencia de consentimiento.</p>
+    </div>
+</div>
+""")
     
     c1, c2 = st.columns(2)
     with c1:
@@ -1139,6 +1148,7 @@ elif st.session_state.step == 2:
             
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("‹ Volver"):
+        clear_canvas_state()
         st.session_state.step = 1
         st.rerun()
 
@@ -1245,6 +1255,7 @@ elif st.session_state.step == 3:
                 st.warning("Por favor complete todos los campos obligatorios (*)")
 
     if st.button("‹ Atrás"):
+        clear_canvas_state()
         st.session_state.step = 2
         st.rerun()
 
@@ -1317,30 +1328,30 @@ elif st.session_state.step == 4:
 # --- PASO 5: ÉXITO ---
 elif st.session_state.step == 5:
     st.balloons()
-    st.markdown(f"""
-    <div class="success-panel">
-        <div class="success-kicker">Proceso formalizado</div>
-        <h1 style="color: #2E7D32; font-size: 4.4rem; margin:0 0 0.35rem;">✓</h1>
-        <h2 style="color: {COLOR_PRIMARY}; text-transform: uppercase; margin-bottom:0.6rem;">Su autorización quedó emitida correctamente</h2>
-        <p style="font-size:1.08rem; color:{COLOR_MUTED}; max-width:720px; margin:0 auto; line-height:1.65;">Sus datos han sido actualizados, su firma electrónica quedó incorporada en el PDF y una copia del documento fue enviada al correo registrado.</p>
-        <div class="success-grid">
-            <div class="success-item">
-                <strong>Radicado</strong>
-                <span>{st.session_state.final_doc_id or 'Generado correctamente'}</span>
-            </div>
-            <div class="success-item">
-                <strong>Fecha de emisión</strong>
-                <span>{st.session_state.final_timestamp or 'Registro exitoso'}</span>
-            </div>
-            <div class="success-item">
-                <strong>Soporte entregado</strong>
-                <span>PDF ejecutivo con firma insertada y trazabilidad electrónica.</span>
-            </div>
+    render_html_block(f"""
+<div class="success-panel">
+    <div class="success-kicker">Proceso formalizado</div>
+    <h1 style="color: #2E7D32; font-size: 4.4rem; margin:0 0 0.35rem;">✓</h1>
+    <h2 style="color: {COLOR_PRIMARY}; text-transform: uppercase; margin-bottom:0.6rem;">Su autorización quedó emitida correctamente</h2>
+    <p style="font-size:1.08rem; color:{COLOR_MUTED}; max-width:720px; margin:0 auto; line-height:1.65;">Sus datos han sido actualizados, su firma electrónica quedó incorporada en el PDF y una copia del documento fue enviada al correo registrado.</p>
+    <div class="success-grid">
+        <div class="success-item">
+            <strong>Radicado</strong>
+            <span>{st.session_state.final_doc_id or 'Generado correctamente'}</span>
         </div>
-        <a href="{st.session_state.final_url}" target="_blank" class="action-link">Ver documento PDF</a>
-        <div style="margin-top:1rem; color:{COLOR_MUTED}; font-size:0.95rem;">Si requiere corrección de datos, por favor contacte a Ferreinox por sus canales oficiales.</div>
+        <div class="success-item">
+            <strong>Fecha de emisión</strong>
+            <span>{st.session_state.final_timestamp or 'Registro exitoso'}</span>
+        </div>
+        <div class="success-item">
+            <strong>Soporte entregado</strong>
+            <span>PDF ejecutivo con firma insertada y trazabilidad electrónica.</span>
+        </div>
     </div>
-    """, unsafe_allow_html=True)
+    <a href="{st.session_state.final_url}" target="_blank" class="action-link">Ver documento PDF</a>
+    <div style="margin-top:1rem; color:{COLOR_MUTED}; font-size:0.95rem;">Si requiere corrección de datos, por favor contacte a Ferreinox por sus canales oficiales.</div>
+</div>
+""")
     
     if st.button("Volver al Inicio"):
         for k in list(st.session_state.keys()):
