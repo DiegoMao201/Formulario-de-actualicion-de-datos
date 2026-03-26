@@ -1045,7 +1045,6 @@ if st.session_state.step < 5:
 
 # --- PASO 1: TÉRMINOS LEGALES AMPLIADOS ---
 if st.session_state.step == 1:
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Antes de continuar: esto es exactamente lo que vamos a hacer</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Ferreinox S.A.S. BIC solicita esta autorización para mantener sus datos correctos, operar su relación comercial con trazabilidad, enviar soportes electrónicos por el correo oficial que usted registre y dejar evidencia verificable de su aceptación.</div>', unsafe_allow_html=True)
 
@@ -1108,11 +1107,9 @@ if st.session_state.step == 1:
             st.rerun()
         else:
             st.warning("⚠️ Debe aceptar los términos legales para continuar con la vinculación.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PASO 2: TIPO DE CLIENTE ---
 elif st.session_state.step == 2:
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Seleccione el perfil que va a formalizar</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Elegir el tipo correcto permite construir el formulario, el PDF y la evidencia de firma con los campos que corresponden a su realidad jurídica.</div>', unsafe_allow_html=True)
     st.markdown("""
@@ -1144,11 +1141,9 @@ elif st.session_state.step == 2:
     if st.button("‹ Volver"):
         st.session_state.step = 1
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PASO 3: FORMULARIO DE DATOS ---
 elif st.session_state.step == 3:
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Diligenciamiento de información y evidencia de firma</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Complete la información con el mayor nivel de precisión posible. Estos datos alimentarán el PDF final, la constancia electrónica y los canales formales de contacto y facturación.</div>', unsafe_allow_html=True)
     st.markdown('<div class="helper-note"><b>Importante:</b> revise especialmente el correo de facturación electrónica, la identificación y el nombre del firmante. El documento final quedará emitido exactamente con los datos aquí registrados.</div>', unsafe_allow_html=True)
@@ -1252,11 +1247,9 @@ elif st.session_state.step == 3:
     if st.button("‹ Atrás"):
         st.session_state.step = 2
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PASO 4: VERIFICACIÓN OTP Y FINALIZACIÓN ---
 elif st.session_state.step == 4:
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Verificación de seguridad y emisión del documento</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-lead">Este es el último control antes de generar el PDF final. Al ingresar el código OTP, el sistema emitirá la constancia con su firma insertada y dejará trazabilidad del consentimiento.</div>', unsafe_allow_html=True)
     
@@ -1320,14 +1313,12 @@ elif st.session_state.step == 4:
                     st.error("Error conectando con base de datos.")
         else:
             st.error("❌ Código incorrecto.")
-            
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PASO 5: ÉXITO ---
 elif st.session_state.step == 5:
     st.balloons()
     st.markdown(f"""
-    <div class="card-box success-panel">
+    <div class="success-panel">
         <div class="success-kicker">Proceso formalizado</div>
         <h1 style="color: #2E7D32; font-size: 4.4rem; margin:0 0 0.35rem;">✓</h1>
         <h2 style="color: {COLOR_PRIMARY}; text-transform: uppercase; margin-bottom:0.6rem;">Su autorización quedó emitida correctamente</h2>
