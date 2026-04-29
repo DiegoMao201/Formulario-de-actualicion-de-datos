@@ -76,15 +76,17 @@ st.markdown(f"""
         --surface: {COLOR_SURFACE};
         --text: {COLOR_TEXT};
         --muted: {COLOR_MUTED};
+        color-scheme: light;
     }}
 
-    html, body, [class*="css"] {{
+    html, body, [class*="css"], [data-testid="stAppViewContainer"], .stApp {{
         font-family: 'Source Sans 3', sans-serif;
         background:
             radial-gradient(circle at top left, rgba(242, 140, 40, 0.16), transparent 22%),
             radial-gradient(circle at top right, rgba(15, 94, 168, 0.18), transparent 25%),
             linear-gradient(180deg, #f6f9fc 0%, {COLOR_BG} 100%);
         color: {COLOR_TEXT};
+        color-scheme: light !important;
     }}
 
     h1, h2, h3, h4, h5, h6 {{
@@ -374,6 +376,44 @@ st.markdown(f"""
         border: 1px solid rgba(10, 46, 87, 0.12) !important;
         padding: 6px !important;
         box-shadow: none !important;
+        color: {COLOR_TEXT} !important;
+        color-scheme: light !important;
+    }}
+    input,
+    textarea,
+    [data-baseweb="input"] input,
+    [data-baseweb="base-input"] input,
+    [data-baseweb="select"] input,
+    .stDateInput input,
+    .stTextInput input,
+    .stTextArea textarea,
+    .stNumberInput input {{
+        color: {COLOR_TEXT} !important;
+        -webkit-text-fill-color: {COLOR_TEXT} !important;
+        caret-color: {COLOR_PRIMARY} !important;
+        background-color: transparent !important;
+        opacity: 1 !important;
+    }}
+    input::placeholder,
+    textarea::placeholder,
+    [data-baseweb="input"] input::placeholder,
+    [data-baseweb="base-input"] input::placeholder,
+    .stDateInput input::placeholder,
+    .stTextInput input::placeholder,
+    .stTextArea textarea::placeholder {{
+        color: {COLOR_MUTED} !important;
+        -webkit-text-fill-color: {COLOR_MUTED} !important;
+        opacity: 1 !important;
+    }}
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    textarea:-webkit-autofill,
+    textarea:-webkit-autofill:hover,
+    textarea:-webkit-autofill:focus {{
+        -webkit-text-fill-color: {COLOR_TEXT} !important;
+        box-shadow: 0 0 0px 1000px rgba(248, 251, 254, 0.98) inset !important;
+        transition: background-color 9999s ease-out 0s !important;
     }}
     div[data-baseweb="input"] > div:focus-within,
     div[data-baseweb="base-input"] > div:focus-within,
@@ -386,6 +426,11 @@ st.markdown(f"""
     label, .stDateInput label {{
         font-weight: 700 !important;
         color: {COLOR_PRIMARY} !important;
+    }}
+    [data-baseweb="select"] *,
+    .stSelectbox *,
+    .stDateInput * {{
+        color: {COLOR_TEXT} !important;
     }}
 
     .stButton>button, .stFormSubmitButton>button {{
