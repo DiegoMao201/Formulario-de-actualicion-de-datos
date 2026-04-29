@@ -13,6 +13,7 @@ from datetime import datetime
 import gspread
 import tempfile
 import os
+import io
 import numpy as np
 import random
 import pytz
@@ -843,8 +844,69 @@ def render_html_block(html):
     compact_html = "".join(line.strip() for line in dedent(html).splitlines())
     st.markdown(compact_html, unsafe_allow_html=True)
 
+def crop_signature_whitespace(image, padding=16, white_threshold=245):
+    base_img = image.convert("RGBA")
+    solid_bg = Image.new("RGBA", base_img.size, (255, 255, 255, 255))
+    solid_bg.alpha_composite(base_img)
+    rgb_img = solid_bg.convert("RGB")
+
+    gray = np.array(rgb_img.convert("L"))
+    non_white = gray < white_threshold
+
+    if not np.any(non_white):
+        return rgb_img
+
+    rows = np.where(non_white.any(axis=1))[0]
+    cols = np.where(non_white.any(axis=0))[0]
+    top = max(int(rows[0]) - padding, 0)
+    bottom = min(int(rows[-1]) + padding + 1, rgb_img.height)
+    left = max(int(cols[0]) - padding, 0)
+    right = min(int(cols[-1]) + padding + 1, rgb_img.width)
+    return rgb_img.crop((left, top, right, bottom))
+
+def build_signature_image_from_upload(uploaded_file):
+    if uploaded_file is None:
+        return None
+
+    file_name = (uploaded_file.name or "").lower()
+    mime_type = uploaded_file.type or ""
+    file_bytes = uploaded_file.getvalue()
+
+    try:
+        if mime_type == "application/pdf" or file_name.endswith(".pdf"):
+            try:
+                import pypdfium2 as pdfium
+            except ImportError as exc:
+                raise RuntimeError("Falta la dependencia para procesar firmas en PDF. Instale pypdfium2.") from exc
+
+            pdf = pdfium.PdfDocument(file_bytes)
+            if len(pdf) == 0:
+                raise ValueError("El PDF no contiene páginas.")
+
+            page = pdf[0]
+            bitmap = page.render(scale=3)
+            pil_image = bitmap.to_pil().convert("RGBA")
+            page.close()
+            pdf.close()
+            return crop_signature_whitespace(pil_image)
+
+        pil_image = Image.open(io.BytesIO(file_bytes)).convert("RGBA")
+        return crop_signature_whitespace(pil_image)
+    except Exception as exc:
+        raise ValueError(f"No fue posible procesar el archivo de firma: {exc}") from exc
+
+def build_signature_image_from_canvas(canvas_result):
+    if canvas_result is None or canvas_result.image_data is None:
+        return None
+
+    if np.all(canvas_result.image_data == 255):
+        return None
+
+    pil_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+    return crop_signature_whitespace(pil_image)
+
 def clear_canvas_state():
-    for key in ["canvas", "main_form"]:
+    for key in ["canvas", "main_form", "signature_mode", "signature_upload"]:
         if key in st.session_state:
             del st.session_state[key]
 
@@ -1168,7 +1230,7 @@ elif st.session_state.step == 3:
             col1, col2 = st.columns(2)
             nom_nat = col1.text_input("Nombre Completo (Cédula)*")
             ced_nat = col2.text_input("Número de Cédula*")
-            fe_nac = col1.date_input("Fecha de Nacimiento*", min_value=datetime(1940,1,1).date(), max_value=datetime(2005,1,1).date())
+            fe_nac = col1.date_input("Fecha de Nacimiento*", min_value=datetime(1940,1,1).date(), max_value=datetime.now().date())
             direccion = col2.text_input("Dirección Residencia*")
             ciudad = col1.text_input("Ciudad*")
             celular = col2.text_input("Celular Personal*")
@@ -1185,30 +1247,59 @@ elif st.session_state.step == 3:
             razon_social, nit, rep_legal, cedula_rep = nom_nat, ced_nat, "", ""
 
         st.markdown("---")
-        st.markdown('<div class="signature-note"><b>Firma electrónica:</b> esta firma será insertada en el PDF final como evidencia visual del consentimiento. Firme dentro del recuadro blanco usando el mouse o el dedo, procurando que la firma sea clara y completa.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="signature-note"><b>Firma electrónica:</b> puede dibujar su firma o cargar un archivo en PNG, JPG, JPEG o PDF. El sistema procesará esa firma y la colocará en el PDF final como evidencia visual del consentimiento.</div>', unsafe_allow_html=True)
 
-        canvas = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#FFFFFF",
-            height=150,
-            width=600,
-            drawing_mode="freedraw",
-            key="canvas",
+        signature_mode = st.radio(
+            "Método de firma*",
+            options=["Dibujar firma", "Cargar archivo"],
+            horizontal=True,
+            key="signature_mode"
         )
+
+        canvas = None
+        uploaded_signature = None
+        if signature_mode == "Dibujar firma":
+            canvas = st_canvas(
+                fill_color="rgba(255, 255, 255, 0)",
+                stroke_width=2,
+                stroke_color="#000000",
+                background_color="#FFFFFF",
+                height=150,
+                width=600,
+                drawing_mode="freedraw",
+                key="canvas",
+            )
+        else:
+            uploaded_signature = st.file_uploader(
+                "Cargue su firma*",
+                type=["png", "jpg", "jpeg", "pdf"],
+                key="signature_upload",
+                help="Use un archivo donde la firma sea claramente visible. Si sube un PDF, se procesará la primera página."
+            )
         
         submitted = st.form_submit_button("GUARDAR Y VALIDAR IDENTIDAD ➜")
         
         if submitted:
             valid = True
+            signature_image = None
             if st.session_state.client_type == 'juridica':
                 if not all([razon_social, nit, direccion, ciudad, correo, correo_facturacion, celular, rep_legal, cedula_rep]): valid = False
             else:
                 if not all([nom_nat, ced_nat, direccion, ciudad, correo, correo_facturacion, celular]): valid = False
 
-            if canvas.image_data is None or np.all(canvas.image_data == 255):
-                st.error("⚠️ La firma es obligatoria.")
+            try:
+                if signature_mode == "Dibujar firma":
+                    signature_image = build_signature_image_from_canvas(canvas)
+                    if signature_image is None:
+                        st.error("⚠️ La firma dibujada es obligatoria.")
+                        valid = False
+                else:
+                    signature_image = build_signature_image_from_upload(uploaded_signature)
+                    if signature_image is None:
+                        st.error("⚠️ Debe cargar un archivo de firma.")
+                        valid = False
+            except ValueError as exc:
+                st.error(f"⚠️ {exc}")
                 valid = False
 
             if valid:
@@ -1219,7 +1310,7 @@ elif st.session_state.step == 3:
                     'correo': correo, 'correo_facturacion': correo_facturacion,
                     'rep_legal': rep_legal, 'cedula_rep_legal': cedula_rep,
                     'nombre_natural': nom_nat, 'cedula_natural': ced_nat, 'fecha_nacimiento': fe_nac,
-                    'firma_img_pil': Image.fromarray(canvas.image_data.astype('uint8'), 'RGBA')
+                    'firma_img_pil': signature_image
                 }
                 # Generar OTP y Enviar
                 otp = str(random.randint(100000, 999999))
