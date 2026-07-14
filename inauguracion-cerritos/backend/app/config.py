@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "tiendapintucopereira@ferreinox.co"
     sendgrid_from_name: str = "Ferreinox S.A.S. BIC"
+    # Correo interno que recibe TODA la información de participación
+    store_notify_email: str = "tiendapintucopereira@ferreinox.co"
 
     # --- Email: SMTP Gmail (respaldo) ---
     smtp_server: str = ""

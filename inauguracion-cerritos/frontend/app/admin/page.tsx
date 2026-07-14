@@ -55,6 +55,26 @@ function Stat({ label, value, accent }: { label: string; value: number | string;
 function Dashboard() {
   const [m, setM] = useState<Metrics | null>(null);
   const [error, setError] = useState("");
+  const [descargando, setDescargando] = useState(false);
+
+  async function descargarExcel() {
+    const t = getToken();
+    if (!t) return;
+    setDescargando(true);
+    try {
+      const blob = await api.descargarReporte(t);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Reporte_Cerritos.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al descargar");
+    } finally {
+      setDescargando(false);
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -73,11 +93,24 @@ function Dashboard() {
 
   return (
     <AdminShell>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold text-navy">Dashboard en vivo</h1>
-        <a href={api.leadsCsvUrl()} className="text-sm font-semibold text-navy hover:underline">
-          ⬇ Exportar leads CSV
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href="/qr"
+            target="_blank"
+            className="rounded-lg border border-navy/20 px-3 py-2 text-sm font-semibold text-navy hover:bg-navy/5"
+          >
+            📷 QR para compartir
+          </a>
+          <button
+            onClick={descargarExcel}
+            disabled={descargando}
+            className="rounded-lg bg-brand-green px-3 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50"
+          >
+            {descargando ? "Generando…" : "⬇ Reporte Excel"}
+          </button>
+        </div>
       </div>
       {error && <p className="mb-4 text-sm text-brand-red">{error}</p>}
       {!m ? (

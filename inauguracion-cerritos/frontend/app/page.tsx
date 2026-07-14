@@ -3,8 +3,16 @@ import { Logo } from "@/components/ui";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-stadium text-white">
-      <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
+    <main className="relative min-h-screen overflow-hidden bg-navy-dark text-white">
+      {/* Imagen de fondo */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url(/fondo-inauguracion.jpg)" }}
+      />
+      {/* Overlay degradado para legibilidad */}
+      <div className="absolute inset-0 bg-gradient-to-b from-navy/75 via-navy/80 to-navy-dark/95" />
+
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
         <header className="flex items-center justify-between">
           <Logo dark />
           <Link

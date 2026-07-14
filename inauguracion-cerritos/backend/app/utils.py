@@ -17,3 +17,8 @@ def codigo_referido() -> str:
 
 def token_url() -> str:
     return secrets.token_urlsafe(32)
+
+
+def token_corto() -> str:
+    """Token corto para QR de canje (URL corta => escanea fácil)."""
+    return secrets.token_urlsafe(9)  # ~12 caracteres

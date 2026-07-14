@@ -118,6 +118,7 @@ class RedeemResponse(BaseModel):
     valido: bool
     ya_redimido: bool
     mensaje: str
+    tipo: Optional[str] = None  # "premio" | "cupon"
     premio: Optional[str] = None
     cliente: Optional[str] = None
     fecha_giro: Optional[datetime] = None

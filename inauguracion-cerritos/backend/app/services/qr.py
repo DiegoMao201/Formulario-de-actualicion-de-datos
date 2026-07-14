@@ -73,3 +73,8 @@ def qr_png_bytes(contenido: str) -> bytes:
     buf = BytesIO()
     qr.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def url_validar(token: str) -> str:
+    """URL corta que abre la página de validación al escanear el QR."""
+    return f"{settings.public_base_url}/validar?t={token}"

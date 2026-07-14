@@ -85,6 +85,17 @@ export const api = {
   girar: (token: string) =>
     req<SpinResult>(`/ruleta/spin/${token}`, { method: "POST" }),
 
+  // Validación pública de un QR (cupón o premio), solo lectura
+  validar: (t: string) =>
+    req<{
+      encontrado: boolean;
+      tipo: "premio" | "cupon" | null;
+      titulo: string | null;
+      cliente: string | null;
+      redimido: boolean;
+      fecha_redencion: string | null;
+    }>(`/validar/${encodeURIComponent(t)}`),
+
   // ---------- Admin ----------
   login: (email: string, password: string) =>
     req<{ access_token: string }>("/admin/login", {
@@ -130,4 +141,14 @@ export const api = {
     }),
 
   leadsCsvUrl: () => `${BASE}/admin/leads.csv`,
+
+  // URL del QR fijo de registro (para compartir por colaboradores)
+  qrRegistroUrl: () => `${BASE}/qr/registro.png`,
+
+  // Descarga autenticada del reporte Excel (lleva el token en el header)
+  descargarReporte: async (token: string): Promise<Blob> => {
+    const res = await fetch(`${BASE}/admin/reporte.xlsx`, { headers: auth(token) });
+    if (!res.ok) throw new Error("No se pudo generar el reporte");
+    return res.blob();
+  },
 };

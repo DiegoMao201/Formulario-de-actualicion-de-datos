@@ -10,6 +10,7 @@ from ..schemas import SpinResult, WheelSegment
 from ..services import email as email_svc
 from ..services import qr as qr_svc
 from ..services import ruleta as ruleta_svc
+from ..utils import token_corto
 
 router = APIRouter(prefix="/ruleta", tags=["ruleta"])
 
@@ -69,12 +70,15 @@ def girar(token: str, background: BackgroundTasks, db: Session = Depends(get_db)
 
     if gano and premio is not None:
         spin.prize_jwt = qr_svc.firmar_premio(spin.id, lead.id, premio.nombre, lead.cedula)
+        spin.redeem_token = token_corto()
         db.commit()
         db.refresh(spin)
-        qr_png = qr_svc.qr_png_bytes(spin.prize_jwt)
+        qr_png = qr_svc.qr_png_bytes(qr_svc.url_validar(spin.redeem_token))
         background.add_task(
             email_svc.enviar_premio, lead.correo, lead.nombre, premio.nombre, qr_png
         )
+        # Notificación interna del premio ganado
+        background.add_task(email_svc.notificar_premio, lead, premio.nombre)
         return SpinResult(
             gano=True,
             prize_id=premio.id,

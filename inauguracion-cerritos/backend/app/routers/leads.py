@@ -11,7 +11,7 @@ from ..models import Lead, MagicLink
 from ..schemas import LeadCreate, LeadResponse
 from ..services import email as email_svc
 from ..services import qr as qr_svc
-from ..utils import codigo_cupon, codigo_referido, token_url
+from ..utils import codigo_cupon, codigo_referido, token_corto, token_url
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -60,13 +60,14 @@ def registrar_lead(
         consentimiento_datos=True,
         consentimiento_ts=datetime.utcnow(),
         coupon_code=coupon,
+        coupon_token=token_corto(),
         referral_code=referral,
         referred_by=referred_by,
     )
     db.add(lead)
     db.flush()  # obtiene lead.id
 
-    # Firma del cupón (JWT) para el QR
+    # Firma del cupón (JWT) para trazabilidad interna
     lead.coupon_jwt = qr_svc.firmar_cupon(lead.id, coupon)
 
     # Magic link de un solo uso hacia la ruleta
@@ -79,9 +80,11 @@ def registrar_lead(
     db.commit()
     db.refresh(lead)
 
-    # Email 1 (cupón + QR) en segundo plano para no bloquear la respuesta
-    qr_png = qr_svc.qr_png_bytes(lead.coupon_jwt)
+    # Email 1 (cupón + QR con URL corta validable) en segundo plano
+    qr_png = qr_svc.qr_png_bytes(qr_svc.url_validar(lead.coupon_token))
     background.add_task(email_svc.enviar_cupon, lead.correo, lead.nombre, coupon, qr_png)
+    # Notificación interna con TODA la info del participante
+    background.add_task(email_svc.notificar_registro, lead)
 
     return LeadResponse(
         id=lead.id,

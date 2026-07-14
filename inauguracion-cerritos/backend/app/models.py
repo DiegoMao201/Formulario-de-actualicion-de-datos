@@ -38,6 +38,11 @@ class Lead(Base):
 
     coupon_code = Column(String(40), unique=True, nullable=False, index=True)
     coupon_jwt = Column(Text, nullable=True)
+    # Token corto para el QR del cupón (URL /validar?t=) y su estado de canje
+    coupon_token = Column(String(40), unique=True, nullable=True, index=True)
+    coupon_redeemed = Column(Boolean, default=False, nullable=False)
+    coupon_redeemed_at = Column(DateTime, nullable=True)
+    coupon_redeemed_by = Column(String(160), nullable=True)
 
     referral_code = Column(String(20), unique=True, nullable=False, index=True)
     referred_by = Column(UUID(as_uuid=False), ForeignKey("leads.id"), nullable=True)
@@ -75,6 +80,8 @@ class Spin(Base):
     server_seed = Column(String(64), nullable=False)  # provably fair
     gano = Column(Boolean, default=False, nullable=False)
     prize_jwt = Column(Text, nullable=True)
+    # Token corto para el QR del premio (URL /validar?t=)
+    redeem_token = Column(String(40), unique=True, nullable=True, index=True)
 
     redeemed = Column(Boolean, default=False, nullable=False)
     redeemed_at = Column(DateTime, nullable=True)

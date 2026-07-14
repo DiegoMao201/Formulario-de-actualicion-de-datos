@@ -157,6 +157,41 @@ def _enviar(to: str, asunto: str, html: str, qr_png: Optional[bytes]) -> bool:
     return _enviar_smtp(to, asunto, html, qr_png)
 
 
+# ---------------- Notificaciones internas (a la tienda) ----------------
+def _html_notif(titulo: str, filas: list[tuple[str, str]]) -> str:
+    tr = "".join(
+        f'<tr><td style="padding:6px 10px;color:#7A8AA0;font-size:13px;">{k}</td>'
+        f'<td style="padding:6px 10px;font-weight:600;color:{BRAND_NAVY};">{v}</td></tr>'
+        for k, v in filas
+    )
+    cuerpo = f'<table style="width:100%;border-collapse:collapse;">{tr}</table>'
+    return _wrapper(titulo, cuerpo)
+
+
+def notificar_registro(lead) -> bool:
+    filas = [
+        ("Nombre", lead.nombre), ("Teléfono", lead.telefono),
+        ("Correo", lead.correo), ("Cédula", lead.cedula),
+        ("Dirección", lead.direccion or "—"), ("Cupón", lead.coupon_code),
+        ("Cód. referido", lead.referral_code),
+        ("Referido por", lead.referred_by or "—"),
+    ]
+    return _enviar(settings.store_notify_email,
+                   f"🆕 Nuevo participante — {lead.nombre}",
+                   _html_notif("Nuevo participante registrado", filas), None)
+
+
+def notificar_premio(lead, premio: str) -> bool:
+    filas = [
+        ("🏆 Premio", premio), ("Cliente", lead.nombre),
+        ("Teléfono", lead.telefono), ("Correo", lead.correo),
+        ("Cédula", lead.cedula),
+    ]
+    return _enviar(settings.store_notify_email,
+                   f"🏆 Premio ganado — {premio} — {lead.nombre}",
+                   _html_notif("Un participante ganó un premio", filas), None)
+
+
 # ---------------- API pública del módulo ----------------
 def enviar_cupon(to: str, nombre: str, code: str, qr_png: bytes) -> bool:
     return _enviar(to, "🎁 Tu cupón 10% — Tienda Pintuco Cerritos",
