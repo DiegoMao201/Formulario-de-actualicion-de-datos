@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { api, SpinResult, WheelSegment } from "@/lib/api";
 import { Button, Logo } from "@/components/ui";
 import Wheel from "@/components/Wheel";
+import Confetti from "@/components/Confetti";
 
 function RuletaInner() {
   const params = useSearchParams();
@@ -86,21 +87,34 @@ function RuletaInner() {
   return (
     <Screen>
       <div className="w-full text-center">
-        <h1 className="text-2xl font-extrabold text-white">
-          {nombre ? `¡${nombre.split(" ")[0]}, gira y gana! ` : "¡Gira y gana!"}🏆
+        <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-brand-yellow/15 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-yellow">
+          🎡 Ruleta del equipo ganador
+        </span>
+        <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-4xl">
+          {nombre ? (
+            <>¡{nombre.split(" ")[0]}, <span className="text-flame">gira y gana</span>! 🏆</>
+          ) : (
+            <>¡<span className="text-flame">Gira y gana</span>! 🏆</>
+          )}
         </h1>
-        <p className="mt-1 text-sm text-white/60">Toca el botón para girar la ruleta del equipo ganador.</p>
+        <p className="mt-2 text-sm text-white/70">Toca <strong className="text-white">GIRAR</strong> y descubre tu premio.</p>
 
-        <div className="my-8">
+        <div className="my-7">
           <Wheel segments={segments} spinning={spinning} targetIndex={target} onDone={onDone} />
         </div>
 
         {error && <p className="mb-3 text-sm font-medium text-brand-red">{error}</p>}
 
-        <Button variant="yellow" className="px-10 py-4 text-lg" onClick={girar} disabled={spinning}>
+        <button
+          onClick={girar}
+          disabled={spinning}
+          className="btn-pulse mx-auto flex items-center gap-2 rounded-2xl bg-gradient-to-b from-brand-yellow to-[#E6A700] px-12 py-5 text-xl font-extrabold text-navy shadow-glow transition hover:scale-105 disabled:animate-none disabled:opacity-60"
+        >
           {spinning ? "Girando…" : "🎯 ¡GIRAR!"}
-        </Button>
+        </button>
       </div>
+
+      <Confetti active={showResult && !!result?.gano} />
 
       <AnimatePresence>
         {showResult && result && (
@@ -113,14 +127,22 @@ function RuletaInner() {
             <motion.div
               initial={{ scale: 0.8, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-card"
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+              className="w-full max-w-sm overflow-hidden rounded-3xl bg-white p-8 text-center shadow-card"
             >
-              <div className="text-6xl">{result.gano ? "🎉" : "🙌"}</div>
-              <h2 className="mt-3 text-2xl font-extrabold text-navy">
-                {result.gano ? "¡Ganaste!" : "¡Gracias por participar!"}
+              <motion.div
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
+                className="text-7xl"
+              >
+                {result.gano ? "🎉" : "🙌"}
+              </motion.div>
+              <h2 className="mt-3 text-3xl font-extrabold text-navy">
+                {result.gano ? "¡GANASTE!" : "¡Gracias por participar!"}
               </h2>
               {result.gano && result.prize_nombre && (
-                <div className="my-4 rounded-2xl bg-navy p-4 text-xl font-extrabold text-brand-yellow">
+                <div className="my-4 rounded-2xl bg-gradient-to-br from-navy to-navy-light p-5 text-2xl font-extrabold text-brand-yellow shadow-glow">
                   {result.prize_nombre}
                 </div>
               )}
