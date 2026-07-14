@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: #eef3f8;
+  color: #172b3a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fondo de estadio/celebración reutilizable */
+.bg-stadium {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(255, 210, 0, 0.12), transparent 60%),
+    linear-gradient(160deg, #0a2e57 0%, #071f3c 100%);
+}
+
+.pintuco-flame {
+  background: linear-gradient(90deg, #e63329, #ff8a00, #ffd200, #1f9e5a, #1f8bd6, #7a2e8e);
+}
+
+/* Texto degradado llama Pintuco */
+.text-flame {
+  background: linear-gradient(90deg, #ffd200, #ff8a00, #e63329);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}

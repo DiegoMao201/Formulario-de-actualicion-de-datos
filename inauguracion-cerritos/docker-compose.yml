@@ -1,0 +1,62 @@
+# Stack de la plataforma de inauguración — Tienda Pintuco Cerritos
+# Local:   docker compose up --build   (frontend -> :3000, api -> :8000)
+# Coolify: desplegar como "Docker Compose". Asignar dominios/paths en la UI:
+#   - frontend  -> Host: cerritos.ferreinox.co
+#   - backend   -> Host: cerritos.ferreinox.co  + PathPrefix: /api
+# (Coolify inyecta automáticamente las labels de Traefik según lo que configures.)
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cerritos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cerritos}
+      POSTGRES_DB: ${POSTGRES_DB:-cerritos}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cerritos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-cerritos}:${POSTGRES_PASSWORD:-cerritos}@db:5432/${POSTGRES_DB:-cerritos}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://cerritos.ferreinox.co}
+      FRONTEND_URL: ${FRONTEND_URL:-https://cerritos.ferreinox.co}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://cerritos.ferreinox.co,http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME}
+      SMTP_SERVER: ${SMTP_SERVER:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      STORE_WHATSAPP: ${STORE_WHATSAPP:-573102806605}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # "" => usa rutas relativas /api (mismo dominio, sin CORS). En local: http://localhost:8000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
