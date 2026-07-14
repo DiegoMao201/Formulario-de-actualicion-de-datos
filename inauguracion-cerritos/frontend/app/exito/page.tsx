@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LeadResponse } from "@/lib/api";
-import { Button, Card, Logo } from "@/components/ui";
+import { Card, Logo } from "@/components/ui";
 
 export default function ExitoPage() {
   const [lead, setLead] = useState<LeadResponse | null>(null);
@@ -54,21 +54,28 @@ export default function ExitoPage() {
             <div className="mt-1 text-2xl font-extrabold text-brand-yellow">{lead.coupon_code}</div>
           </div>
 
-          <div className="rounded-2xl bg-brand-green/10 p-5">
-            <p className="text-sm font-semibold text-navy">🎡 ¡Ahora gira la ruleta!</p>
+          <div className="rounded-2xl bg-navy/[0.04] p-5">
+            <p className="text-base font-extrabold text-navy">🎡 ¡Ahora gira la ruleta y gana!</p>
             <p className="mt-1 text-xs text-navy/60">
-              Envíate tu enlace exclusivo por WhatsApp para participar (un solo uso).
+              Tu giro está listo. ¡Toca el botón y descubre tu premio! 🏆
             </p>
-            <a href={lead.whatsapp_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="yellow" className="mt-3 w-full bg-brand-green text-white hover:brightness-95">
-                <span>📲</span> Enviarme el enlace por WhatsApp
-              </Button>
-            </a>
+
+            {/* Botón protagonista: iniciar la ruleta de una */}
             <Link href={`/ruleta?token=${lead.magic_token}`}>
-              <Button variant="outline" className="mt-2 w-full">
-                O girar aquí mismo →
-              </Button>
+              <button className="btn-pulse mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-brand-yellow to-[#E6A700] px-6 py-5 text-lg font-extrabold text-navy shadow-glow transition hover:scale-[1.03]">
+                🎯 ¡GIRAR LA RULETA AHORA!
+              </button>
             </Link>
+
+            {/* WhatsApp: acción secundaria y discreta */}
+            <a
+              href={lead.whatsapp_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-navy/50 transition hover:text-brand-green"
+            >
+              📲 O enviarme el enlace por WhatsApp para girar luego
+            </a>
           </div>
 
           <div className="mt-5 border-t border-navy/10 pt-4">
