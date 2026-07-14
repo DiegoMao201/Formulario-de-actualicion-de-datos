@@ -11,7 +11,7 @@ from ..services import email as email_svc
 from ..services import qr as qr_svc
 from ..services import ruleta as ruleta_svc
 
-router = APIRouter(prefix="/api/ruleta", tags=["ruleta"])
+router = APIRouter(prefix="/ruleta", tags=["ruleta"])
 
 
 @router.get("/config", response_model=list[WheelSegment])

@@ -1,7 +1,9 @@
-// Cliente de la API. En producción, /api se enruta al backend (mismo dominio vía Traefik).
-// En local, NEXT_PUBLIC_API_URL=http://localhost:8000
+// Cliente de la API.
+// Producción: BASE="/api" → Traefik enruta /api al backend y le QUITA el prefijo,
+//   así el backend (que sirve en la raíz) recibe /leads, /ruleta, /admin, etc.
+// Local: NEXT_PUBLIC_API_URL=http://localhost:8000 → llama directo al backend en la raíz.
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 export type WheelSegment = {
   id: string;
@@ -73,45 +75,45 @@ function auth(token: string): HeadersInit {
 // ---------- Público ----------
 export const api = {
   registrar: (data: Record<string, unknown>) =>
-    req<LeadResponse>("/api/leads", { method: "POST", body: JSON.stringify(data) }),
+    req<LeadResponse>("/leads", { method: "POST", body: JSON.stringify(data) }),
 
-  ruletaConfig: () => req<WheelSegment[]>("/api/ruleta/config"),
+  ruletaConfig: () => req<WheelSegment[]>("/ruleta/config"),
 
   validarMagic: (token: string) =>
-    req<{ valido: boolean; usado: boolean; nombre: string | null }>(`/api/magic/${token}`),
+    req<{ valido: boolean; usado: boolean; nombre: string | null }>(`/magic/${token}`),
 
   girar: (token: string) =>
-    req<SpinResult>(`/api/ruleta/spin/${token}`, { method: "POST" }),
+    req<SpinResult>(`/ruleta/spin/${token}`, { method: "POST" }),
 
   // ---------- Admin ----------
   login: (email: string, password: string) =>
-    req<{ access_token: string }>("/api/admin/login", {
+    req<{ access_token: string }>("/admin/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   metrics: (token: string) =>
-    req<Metrics>("/api/admin/metrics", { headers: auth(token) }),
+    req<Metrics>("/admin/metrics", { headers: auth(token) }),
 
   premios: (token: string) =>
-    req<Prize[]>("/api/admin/prizes", { headers: auth(token) }),
+    req<Prize[]>("/admin/prizes", { headers: auth(token) }),
 
   crearPremio: (token: string, data: Record<string, unknown>) =>
-    req<Prize>("/api/admin/prizes", {
+    req<Prize>("/admin/prizes", {
       method: "POST",
       headers: auth(token),
       body: JSON.stringify(data),
     }),
 
   actualizarPremio: (token: string, id: string, data: Record<string, unknown>) =>
-    req<Prize>(`/api/admin/prizes/${id}`, {
+    req<Prize>(`/admin/prizes/${id}`, {
       method: "PUT",
       headers: auth(token),
       body: JSON.stringify(data),
     }),
 
   eliminarPremio: (token: string, id: string) =>
-    req<void>(`/api/admin/prizes/${id}`, { method: "DELETE", headers: auth(token) }),
+    req<void>(`/admin/prizes/${id}`, { method: "DELETE", headers: auth(token) }),
 
   redimir: (token: string, qrToken: string) =>
     req<{
@@ -121,11 +123,11 @@ export const api = {
       premio?: string | null;
       cliente?: string | null;
       fecha_giro?: string | null;
-    }>("/api/admin/redeem", {
+    }>("/admin/redeem", {
       method: "POST",
       headers: auth(token),
       body: JSON.stringify({ token: qrToken }),
     }),
 
-  leadsCsvUrl: () => `${BASE}/api/admin/leads.csv`,
+  leadsCsvUrl: () => `${BASE}/admin/leads.csv`,
 };

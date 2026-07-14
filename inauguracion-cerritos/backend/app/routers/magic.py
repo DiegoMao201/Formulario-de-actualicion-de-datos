@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Lead, MagicLink, Spin
 
-router = APIRouter(prefix="/api/magic", tags=["magic"])
+router = APIRouter(prefix="/magic", tags=["magic"])
 
 
 @router.get("/{token}")

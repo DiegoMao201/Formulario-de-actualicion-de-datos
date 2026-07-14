@@ -23,7 +23,7 @@ from ..schemas import (
 from ..security import create_session_token, get_current_admin, verify_password
 from ..services import qr as qr_svc
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 # ---------------- Auth ----------------

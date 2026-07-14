@@ -44,6 +44,6 @@ app.include_router(ruleta.router)
 app.include_router(admin.router)
 
 
-@app.get("/api/health")
+@app.get("/health")
 def health():
     return {"status": "ok", "app": settings.app_name}

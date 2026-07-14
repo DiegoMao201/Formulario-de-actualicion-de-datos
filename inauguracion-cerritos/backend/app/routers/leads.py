@@ -13,7 +13,7 @@ from ..services import email as email_svc
 from ..services import qr as qr_svc
 from ..utils import codigo_cupon, codigo_referido, token_url
 
-router = APIRouter(prefix="/api/leads", tags=["leads"])
+router = APIRouter(prefix="/leads", tags=["leads"])
 
 
 def _whatsapp_url(nombre: str, magic_token: str) -> str:
