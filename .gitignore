@@ -220,3 +220,7 @@ inauguracion-cerritos/frontend/.next/
 
 .DS_Store
 **/.DS_Store
+
+# Excepción: el lib/ del frontend Next.js NO es un lib de Python
+!inauguracion-cerritos/frontend/lib/
+!inauguracion-cerritos/frontend/lib/**
