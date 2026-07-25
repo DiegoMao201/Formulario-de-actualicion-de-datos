@@ -22,3 +22,11 @@ def token_url() -> str:
 def token_corto() -> str:
     """Token corto para QR de canje (URL corta => escanea fácil)."""
     return secrets.token_urlsafe(9)  # ~12 caracteres
+
+
+def slugify(texto: str) -> str:
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+    t = re.sub(r"[^a-zA-Z0-9]+", "-", t).strip("-").lower()
+    return t or "canal"

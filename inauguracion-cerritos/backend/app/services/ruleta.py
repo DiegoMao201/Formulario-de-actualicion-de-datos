@@ -17,24 +17,26 @@ def _generar_seed() -> str:
     return hashlib.sha256(_secrets.token_bytes(32)).hexdigest()
 
 
-def segmentos_visibles(db: Session) -> List[Prize]:
-    """Premios que se dibujan en la ruleta (activos), ordenados. Incluye perdedores."""
-    return (
-        db.query(Prize)
-        .filter(Prize.activo.is_(True))
-        .order_by(Prize.orden.asc(), Prize.created_at.asc())
-        .all()
-    )
+def segmentos_visibles(db: Session, channel_id: Optional[str] = None) -> List[Prize]:
+    """Premios activos de un canal (o de la inauguración si channel_id es None)."""
+    q = db.query(Prize).filter(Prize.activo.is_(True))
+    if channel_id is None:
+        q = q.filter(Prize.channel_id.is_(None))
+    else:
+        q = q.filter(Prize.channel_id == channel_id)
+    return q.order_by(Prize.orden.asc(), Prize.created_at.asc()).all()
 
 
-def elegir_premio(db: Session) -> Tuple[Optional[Prize], str, int, List[Prize]]:
+def elegir_premio(
+    db: Session, channel_id: Optional[str] = None
+) -> Tuple[Optional[Prize], str, int, List[Prize]]:
     """Devuelve (premio, server_seed, indice_segmento, lista_segmentos).
 
     - Solo entran al sorteo premios con stock_restante > 0 (o perdedores, stock infinito).
     - La ponderación usa `probabilidad`. Si todo lo "ganable" se agotó, cae en un perdedor.
     """
     seed = _generar_seed()
-    segmentos = segmentos_visibles(db)
+    segmentos = segmentos_visibles(db, channel_id)
     if not segmentos:
         return None, seed, 0, []
 

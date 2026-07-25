@@ -6,6 +6,7 @@ import { clearToken } from "@/lib/auth";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
+  { href: "/admin/canales", label: "Sedes y Vendedores", icon: "🏢" },
   { href: "/admin/premios", label: "Premios", icon: "🎁" },
   { href: "/admin/escanear", label: "Escanear QR", icon: "📷" },
 ];

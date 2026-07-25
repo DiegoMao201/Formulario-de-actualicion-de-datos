@@ -8,7 +8,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Lead, Prize, Spin
+from ..models import Channel, Lead, Prize, Spin
 
 NAVY = "FF0A2E57"
 NAVY_LIGHT = "FF12386B"
@@ -236,6 +236,74 @@ def generar_reporte(db: Session) -> bytes:
     if not pend_cup:
         ws4.cell(row=r, column=1, value="— Sin cupones pendientes —").font = Font(italic=True, color=NAVY_LIGHT)
     _autosize(ws4, [24, 15, 28, 20, 18])
+
+    # ---------- Hoja 5: Canales (resumen comparativo) ----------
+    channels = db.query(Channel).order_by(Channel.tipo.asc(), Channel.orden.asc()).all()
+    if channels:
+        wsc = wb.create_sheet("Canales")
+        wsc.sheet_view.showGridLines = False
+        _title(wsc, "🏢 SEDES Y VENDEDORES — RESUMEN", 6)
+        _header(wsc, 4, ["Tipo", "Nombre", "Giros", "Premios entregados", "Estado"])
+        r = 5
+        for ch in channels:
+            giros = db.query(func.count(Spin.id)).filter(Spin.channel_id == ch.id).scalar() or 0
+            entreg = db.query(func.count(Spin.id)).filter(
+                Spin.channel_id == ch.id, Spin.gano.is_(True)).scalar() or 0
+            vals = [ch.tipo.capitalize(), ch.nombre, giros, entreg,
+                    "Activo" if ch.activo else "Inactivo"]
+            for j, v in enumerate(vals, start=1):
+                c = wsc.cell(row=r, column=j, value=v)
+                c.border = BORDER
+                c.alignment = Alignment(horizontal="center" if j in (1, 3, 4, 5) else "left")
+                if r % 2 == 0:
+                    c.fill = PatternFill("solid", fgColor=LIGHT)
+            r += 1
+        wsc.freeze_panes = "A5"
+        _autosize(wsc, [12, 24, 12, 20, 12])
+
+        # ---------- Una hoja por cada canal ----------
+        usados = set(wb.sheetnames)
+        for ch in channels:
+            pref = "Sede" if ch.tipo == "sede" else "Vend"
+            base = f"{pref} - {ch.nombre}"[:31]
+            name = base
+            k = 2
+            while name in usados:
+                name = f"{base[:28]}-{k}"
+                k += 1
+            usados.add(name)
+            wsx = wb.create_sheet(name)
+            wsx.sheet_view.showGridLines = False
+            _title(wsx, f"{'🏬' if ch.tipo == 'sede' else '🧑‍💼'} {ch.nombre.upper()}", 6)
+            if ch.modo == "factura":
+                _header(wsx, 4, ["Fecha", "Factura", "Premio", "¿Ganó?", "Entregado por", "Cliente"])
+            else:
+                _header(wsx, 4, ["Fecha", "Cliente", "Teléfono", "Premio", "¿Ganó?", "Entregado por"])
+            spins = db.query(Spin).filter(Spin.channel_id == ch.id).order_by(
+                Spin.created_at.desc()).all()
+            for i, s in enumerate(spins):
+                row = 5 + i
+                prize = db.query(Prize).filter(Prize.id == s.prize_id).first() if s.prize_id else None
+                pn = prize.nombre if prize else "Sin premio"
+                if ch.modo == "factura":
+                    vals = [_fecha(s.created_at), s.factura or "", pn, None, s.redeemed_by or "", s.nombre or ""]
+                    gano_col = 4
+                else:
+                    vals = [_fecha(s.created_at), s.nombre or "", s.telefono or "", pn, None, s.redeemed_by or ""]
+                    gano_col = 5
+                for j, v in enumerate(vals, start=1):
+                    if j == gano_col:
+                        continue
+                    c = wsx.cell(row=row, column=j, value=v)
+                    c.border = BORDER
+                gc = wsx.cell(row=row, column=gano_col, value="SÍ" if s.gano else "No")
+                gc.border = BORDER
+                gc.alignment = Alignment(horizontal="center")
+                if s.gano:
+                    gc.font = Font(bold=True, color=GREEN)
+                    gc.fill = PatternFill("solid", fgColor=GREEN_SOFT)
+            wsx.freeze_panes = "A5"
+            _autosize(wsx, [18, 22, 22, 14, 20, 22])
 
     buf = BytesIO()
     wb.save(buf)

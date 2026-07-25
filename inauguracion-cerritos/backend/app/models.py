@@ -66,7 +66,23 @@ class Prize(Base):
     es_perdedor = Column(Boolean, default=False, nullable=False)  # "sigue participando"
     activo = Column(Boolean, default=True, nullable=False)
     orden = Column(Integer, default=0, nullable=False)
+    # Canal (sede/vendedor) al que pertenece el premio. NULL = inauguración.
+    channel_id = Column(UUID(as_uuid=False), ForeignKey("channels.id"), nullable=True, index=True)
 
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Channel(Base):
+    """Punto de giro: una sede o un vendedor externo. Cada uno con su QR y premios."""
+    __tablename__ = "channels"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tipo = Column(String(20), nullable=False)  # 'sede' | 'vendedor'
+    nombre = Column(String(120), nullable=False)
+    slug = Column(String(60), unique=True, nullable=False, index=True)
+    modo = Column(String(20), nullable=False)  # 'factura' | 'vendedor'
+    activo = Column(Boolean, default=True, nullable=False)
+    orden = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -74,8 +90,15 @@ class Spin(Base):
     __tablename__ = "spins"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
-    lead_id = Column(UUID(as_uuid=False), ForeignKey("leads.id"), nullable=False)
+    lead_id = Column(UUID(as_uuid=False), ForeignKey("leads.id"), nullable=True)
     prize_id = Column(UUID(as_uuid=False), ForeignKey("prizes.id"), nullable=True)
+    # Canal donde se giró (NULL = inauguración con registro completo)
+    channel_id = Column(UUID(as_uuid=False), ForeignKey("channels.id"), nullable=True, index=True)
+
+    # Datos del participante en giro rápido (sede/vendedor)
+    nombre = Column(String(160), nullable=True)
+    telefono = Column(String(40), nullable=True)
+    factura = Column(String(60), nullable=True, index=True)
 
     server_seed = Column(String(64), nullable=False)  # provably fair
     gano = Column(Boolean, default=False, nullable=False)
@@ -91,6 +114,7 @@ class Spin(Base):
 
     lead = relationship("Lead", back_populates="spins")
     prize = relationship("Prize")
+    channel = relationship("Channel")
 
 
 class MagicLink(Base):

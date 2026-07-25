@@ -4,8 +4,9 @@ import logging
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .models import AdminUser, Prize
+from .models import AdminUser, Channel, Prize
 from .security import hash_password
+from .utils import slugify
 
 logger = logging.getLogger("seed")
 
@@ -38,10 +39,50 @@ def run_seed(db: Session) -> None:
         ))
         logger.info("Admin creado: %s", settings.admin_email)
 
-    # Premios por defecto (solo si la tabla está vacía)
-    if db.query(Prize).count() == 0:
+    # Premios por defecto de la inauguración (solo si NO hay premios sin canal)
+    if db.query(Prize).filter(Prize.channel_id.is_(None)).count() == 0:
         for p in PREMIOS_DEFAULT:
             db.add(Prize(**p, stock_restante=p["stock_total"]))
-        logger.info("Premios por defecto sembrados.")
+        logger.info("Premios de inauguración sembrados.")
 
+    seed_channels(db)
     db.commit()
+
+
+# Sedes (mostrador, giran con número de factura) y vendedores externos (nombre + teléfono)
+SEDES = ["Laureles", "San Antonio", "San Francisco", "Ópalo", "Cerritos", "Olaya", "Ferrebox"]
+
+# Premios de ejemplo por canal (editables desde el admin)
+PREMIOS_CANAL = [
+    {"nombre": "Souvenir Pintuco", "stock_total": 100, "probabilidad": 0.25, "color": "#E63329", "orden": 1},
+    {"nombre": "Descuento 5%", "stock_total": 200, "probabilidad": 0.25, "color": "#FFD200", "orden": 2},
+    {"nombre": "Sigue participando", "stock_total": 0, "probabilidad": 0.40, "color": "#12386b",
+     "es_perdedor": True, "orden": 3},
+    {"nombre": "Gorra Pintuco", "stock_total": 30, "probabilidad": 0.10, "color": "#1F9E5A", "orden": 4},
+]
+
+
+def _crear_premios_canal(db: Session, channel_id: str) -> None:
+    for p in PREMIOS_CANAL:
+        db.add(Prize(**p, stock_restante=p["stock_total"], channel_id=channel_id))
+
+
+def seed_channels(db: Session) -> None:
+    """Crea las 7 sedes y 10 vendedores (con premios de ejemplo) si no existen."""
+    if db.query(Channel).count() > 0:
+        return
+    orden = 0
+    for nombre in SEDES:
+        orden += 1
+        ch = Channel(tipo="sede", nombre=nombre, slug=slugify(nombre),
+                     modo="factura", orden=orden)
+        db.add(ch)
+        db.flush()
+        _crear_premios_canal(db, ch.id)
+    for i in range(1, 11):
+        ch = Channel(tipo="vendedor", nombre=f"Vendedor {i}", slug=f"vendedor-{i}",
+                     modo="vendedor", orden=i)
+        db.add(ch)
+        db.flush()
+        _crear_premios_canal(db, ch.id)
+    logger.info("Canales (7 sedes + 10 vendedores) sembrados.")

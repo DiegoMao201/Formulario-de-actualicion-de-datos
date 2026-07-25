@@ -10,7 +10,7 @@ from .config import settings
 from .database import Base, SessionLocal, engine
 from sqlalchemy import text
 
-from .routers import admin, leads, magic, ruleta, validar
+from .routers import admin, channels, leads, magic, ruleta, validar
 from .seed import run_seed
 from .services import qr as qr_svc
 
@@ -21,6 +21,13 @@ _MIGRACIONES = [
     "ALTER TABLE leads ADD COLUMN IF NOT EXISTS coupon_redeemed_at TIMESTAMP",
     "ALTER TABLE leads ADD COLUMN IF NOT EXISTS coupon_redeemed_by VARCHAR(160)",
     "ALTER TABLE spins ADD COLUMN IF NOT EXISTS redeem_token VARCHAR(40)",
+    # Canales (sedes / vendedores)
+    "ALTER TABLE prizes ADD COLUMN IF NOT EXISTS channel_id UUID",
+    "ALTER TABLE spins ADD COLUMN IF NOT EXISTS channel_id UUID",
+    "ALTER TABLE spins ADD COLUMN IF NOT EXISTS nombre VARCHAR(160)",
+    "ALTER TABLE spins ADD COLUMN IF NOT EXISTS telefono VARCHAR(40)",
+    "ALTER TABLE spins ADD COLUMN IF NOT EXISTS factura VARCHAR(60)",
+    "ALTER TABLE spins ALTER COLUMN lead_id DROP NOT NULL",
 ]
 
 logging.basicConfig(level=logging.INFO)
@@ -62,6 +69,7 @@ app.include_router(leads.router)
 app.include_router(magic.router)
 app.include_router(ruleta.router)
 app.include_router(validar.router)
+app.include_router(channels.router)
 app.include_router(admin.router)
 
 
@@ -74,6 +82,15 @@ def health():
 def qr_registro():
     """QR fijo hacia el formulario de registro (para compartir por colaboradores)."""
     url = f"{settings.public_base_url}/registro"
+    png = qr_svc.qr_png_bytes(url)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/qr/c/{slug}.png")
+def qr_canal(slug: str):
+    """QR de un canal (sede/vendedor) hacia su ruleta."""
+    url = f"{settings.public_base_url}/girar/{slug}"
     png = qr_svc.qr_png_bytes(url)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "public, max-age=3600"})

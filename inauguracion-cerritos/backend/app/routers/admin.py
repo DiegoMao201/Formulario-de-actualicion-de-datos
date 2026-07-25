@@ -8,10 +8,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import get_db
-from ..models import AdminUser, Lead, Prize, Spin
+from ..models import AdminUser, Channel, Lead, Prize, Spin
 from ..schemas import (
     AdminLogin,
+    ChannelCreate,
+    ChannelResponse,
+    ChannelUpdate,
     Metrics,
     PrizeCreate,
     PrizeResponse,
@@ -23,6 +27,15 @@ from ..schemas import (
 from ..security import create_session_token, get_current_admin, verify_password
 from ..services import redeem as redeem_svc
 from ..services import report as report_svc
+from ..utils import slugify
+
+
+def _channel_out(ch: Channel) -> ChannelResponse:
+    return ChannelResponse(
+        id=ch.id, tipo=ch.tipo, nombre=ch.nombre, slug=ch.slug, modo=ch.modo,
+        activo=ch.activo, orden=ch.orden,
+        qr_url=f"{settings.public_base_url}/girar/{ch.slug}",
+    )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -57,10 +70,65 @@ def metrics(db: Session = Depends(get_db), _=Depends(get_current_admin)):
     )
 
 
+# ---------------- CRUD canales (sedes / vendedores) ----------------
+@router.get("/channels", response_model=list[ChannelResponse])
+def listar_canales(db: Session = Depends(get_db), _=Depends(get_current_admin)):
+    chs = db.query(Channel).order_by(Channel.tipo.asc(), Channel.orden.asc(), Channel.nombre.asc()).all()
+    return [_channel_out(c) for c in chs]
+
+
+@router.post("/channels", response_model=ChannelResponse, status_code=201)
+def crear_canal(data: ChannelCreate, db: Session = Depends(get_db), _=Depends(get_current_admin)):
+    base = slugify(data.slug or data.nombre)
+    slug = base
+    i = 2
+    while db.query(Channel).filter(Channel.slug == slug).first():
+        slug = f"{base}-{i}"
+        i += 1
+    ch = Channel(tipo=data.tipo, nombre=data.nombre, slug=slug, modo=data.modo,
+                 activo=data.activo, orden=data.orden)
+    db.add(ch)
+    db.commit()
+    db.refresh(ch)
+    return _channel_out(ch)
+
+
+@router.put("/channels/{channel_id}", response_model=ChannelResponse)
+def actualizar_canal(
+    channel_id: str, data: ChannelUpdate, db: Session = Depends(get_db), _=Depends(get_current_admin)
+):
+    ch = db.query(Channel).filter(Channel.id == channel_id).first()
+    if not ch:
+        raise HTTPException(status_code=404, detail="Canal no encontrado.")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(ch, k, v)
+    db.commit()
+    db.refresh(ch)
+    return _channel_out(ch)
+
+
+@router.delete("/channels/{channel_id}", status_code=204)
+def eliminar_canal(channel_id: str, db: Session = Depends(get_db), _=Depends(get_current_admin)):
+    ch = db.query(Channel).filter(Channel.id == channel_id).first()
+    if not ch:
+        raise HTTPException(status_code=404, detail="Canal no encontrado.")
+    db.query(Prize).filter(Prize.channel_id == channel_id).delete()
+    db.delete(ch)
+    db.commit()
+
+
 # ---------------- CRUD premios ----------------
 @router.get("/prizes", response_model=list[PrizeResponse])
-def listar_premios(db: Session = Depends(get_db), _=Depends(get_current_admin)):
-    return db.query(Prize).order_by(Prize.orden.asc(), Prize.created_at.asc()).all()
+def listar_premios(
+    channel_id: str | None = None, db: Session = Depends(get_db), _=Depends(get_current_admin)
+):
+    """Premios de un canal. Sin channel_id => premios de la inauguración (channel_id NULL)."""
+    q = db.query(Prize)
+    if channel_id:
+        q = q.filter(Prize.channel_id == channel_id)
+    else:
+        q = q.filter(Prize.channel_id.is_(None))
+    return q.order_by(Prize.orden.asc(), Prize.created_at.asc()).all()
 
 
 @router.post("/prizes", response_model=PrizeResponse, status_code=201)

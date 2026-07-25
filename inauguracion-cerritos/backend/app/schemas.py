@@ -76,6 +76,7 @@ class PrizeBase(BaseModel):
     es_perdedor: bool = False
     activo: bool = True
     orden: int = 0
+    channel_id: Optional[str] = None  # None = inauguración
 
 
 class PrizeCreate(PrizeBase):
@@ -108,6 +109,50 @@ class Metrics(BaseModel):
     premios_entregados: int
     premios_disponibles: int
     tasa_conversion: float
+
+
+# ---------- Canales (sedes / vendedores) ----------
+class ChannelBase(BaseModel):
+    tipo: str = Field(pattern="^(sede|vendedor)$")
+    nombre: str = Field(min_length=1, max_length=120)
+    modo: str = Field(pattern="^(factura|vendedor)$")
+    activo: bool = True
+    orden: int = 0
+
+
+class ChannelCreate(ChannelBase):
+    slug: Optional[str] = None  # se autogenera del nombre si no viene
+
+
+class ChannelUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = Field(default=None, pattern="^(sede|vendedor)$")
+    modo: Optional[str] = Field(default=None, pattern="^(factura|vendedor)$")
+    activo: Optional[bool] = None
+    orden: Optional[int] = None
+
+
+class ChannelResponse(ChannelBase):
+    id: str
+    slug: str
+    qr_url: str  # URL pública que abre la ruleta del canal
+
+    class Config:
+        from_attributes = True
+
+
+class ChannelPublic(BaseModel):
+    nombre: str
+    tipo: str
+    modo: str
+    activo: bool
+
+
+class ChannelSpinRequest(BaseModel):
+    # Según el modo del canal:
+    factura: Optional[str] = Field(default=None, max_length=60)     # sede
+    nombre: Optional[str] = Field(default=None, max_length=160)     # vendedor
+    telefono: Optional[str] = Field(default=None, max_length=40)    # vendedor
 
 
 class RedeemRequest(BaseModel):

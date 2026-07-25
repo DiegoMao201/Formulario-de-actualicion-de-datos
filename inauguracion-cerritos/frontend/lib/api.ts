@@ -40,6 +40,25 @@ export type Prize = {
   es_perdedor: boolean;
   activo: boolean;
   orden: number;
+  channel_id?: string | null;
+};
+
+export type Channel = {
+  id: string;
+  tipo: "sede" | "vendedor";
+  nombre: string;
+  slug: string;
+  modo: "factura" | "vendedor";
+  activo: boolean;
+  orden: number;
+  qr_url: string;
+};
+
+export type ChannelPublic = {
+  nombre: string;
+  tipo: "sede" | "vendedor";
+  modo: "factura" | "vendedor";
+  activo: boolean;
 };
 
 export type Metrics = {
@@ -85,6 +104,19 @@ export const api = {
   girar: (token: string) =>
     req<SpinResult>(`/ruleta/spin/${token}`, { method: "POST" }),
 
+  // ---------- Canales (giro rápido por sede/vendedor) ----------
+  infoCanal: (slug: string) => req<ChannelPublic>(`/channels/${slug}`),
+
+  ruletaCanal: (slug: string) => req<WheelSegment[]>(`/channels/${slug}/ruleta`),
+
+  girarCanal: (slug: string, data: Record<string, unknown>) =>
+    req<SpinResult>(`/channels/${slug}/spin`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  qrCanalUrl: (slug: string) => `${BASE}/qr/c/${slug}.png`,
+
   // Validación pública de un QR (cupón o premio), solo lectura
   validar: (t: string) =>
     req<{
@@ -106,8 +138,30 @@ export const api = {
   metrics: (token: string) =>
     req<Metrics>("/admin/metrics", { headers: auth(token) }),
 
-  premios: (token: string) =>
-    req<Prize[]>("/admin/prizes", { headers: auth(token) }),
+  premios: (token: string, channelId?: string) =>
+    req<Prize[]>(`/admin/prizes${channelId ? `?channel_id=${channelId}` : ""}`, {
+      headers: auth(token),
+    }),
+
+  // Canales (admin)
+  canales: (token: string) => req<Channel[]>("/admin/channels", { headers: auth(token) }),
+
+  crearCanal: (token: string, data: Record<string, unknown>) =>
+    req<Channel>("/admin/channels", {
+      method: "POST",
+      headers: auth(token),
+      body: JSON.stringify(data),
+    }),
+
+  actualizarCanal: (token: string, id: string, data: Record<string, unknown>) =>
+    req<Channel>(`/admin/channels/${id}`, {
+      method: "PUT",
+      headers: auth(token),
+      body: JSON.stringify(data),
+    }),
+
+  eliminarCanal: (token: string, id: string) =>
+    req<void>(`/admin/channels/${id}`, { method: "DELETE", headers: auth(token) }),
 
   crearPremio: (token: string, data: Record<string, unknown>) =>
     req<Prize>("/admin/prizes", {

@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { api, Prize } from "@/lib/api";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { api, Channel, Prize } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth";
 import { Button, Card, Input } from "@/components/ui";
 import AdminShell from "@/components/AdminShell";
@@ -16,21 +17,35 @@ const VACIO = {
   orden: 0,
 };
 
-export default function PremiosPage() {
+function PremiosInner() {
   const { token, ready } = useRequireAuth();
+  const params = useSearchParams();
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [sel, setSel] = useState<string>(""); // "" = Inauguración; si no, channel_id
   const [premios, setPremios] = useState<Prize[]>([]);
   const [form, setForm] = useState<Record<string, unknown>>(VACIO);
   const [editId, setEditId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  // Preselección desde ?channel= (viene de la página de canales)
+  useEffect(() => {
+    const c = params.get("channel");
+    if (c) setSel(c);
+  }, [params]);
+
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      setPremios(await api.premios(token));
+      setPremios(await api.premios(token, sel || undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     }
-  }, [token]);
+  }, [token, sel]);
+
+  useEffect(() => {
+    if (!ready || !token) return;
+    api.canales(token).then(setChannels).catch(() => {});
+  }, [ready, token]);
 
   useEffect(() => {
     if (ready) load();
@@ -42,7 +57,7 @@ export default function PremiosPage() {
     setError("");
     try {
       if (editId) await api.actualizarPremio(token, editId, form);
-      else await api.crearPremio(token, form);
+      else await api.crearPremio(token, { ...form, channel_id: sel || null });
       setForm(VACIO);
       setEditId(null);
       load();
@@ -81,9 +96,40 @@ export default function PremiosPage() {
 
   if (!ready) return null;
 
+  const canalActual = channels.find((c) => c.id === sel);
+
   return (
     <AdminShell>
-      <h1 className="mb-4 text-xl font-extrabold text-navy">Gestión de premios</h1>
+      <h1 className="mb-3 text-xl font-extrabold text-navy">Gestión de premios</h1>
+
+      {/* Selector de canal: la ruleta de cada punto usa SUS premios */}
+      <Card className="mb-4">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-navy">
+            Ruleta / punto de giro
+          </span>
+          <select
+            value={sel}
+            onChange={(e) => setSel(e.target.value)}
+            className="w-full rounded-xl border border-navy/15 bg-white px-4 py-3 font-semibold text-navy"
+          >
+            <option value="">🎉 Inauguración (registro completo)</option>
+            <optgroup label="🏬 Sedes">
+              {channels.filter((c) => c.tipo === "sede").map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </optgroup>
+            <optgroup label="🧑‍💼 Vendedores">
+              {channels.filter((c) => c.tipo === "vendedor").map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+        <p className="mt-2 text-xs text-navy/50">
+          Estás editando los premios de <strong>{canalActual ? canalActual.nombre : "la Inauguración"}</strong>.
+        </p>
+      </Card>
 
       <Card className="mb-6">
         <h2 className="mb-3 font-bold text-navy">{editId ? "Editar premio" : "Nuevo premio"}</h2>
@@ -144,5 +190,13 @@ export default function PremiosPage() {
         ))}
       </div>
     </AdminShell>
+  );
+}
+
+export default function PremiosPage() {
+  return (
+    <Suspense fallback={null}>
+      <PremiosInner />
+    </Suspense>
   );
 }
